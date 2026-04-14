@@ -1,0 +1,4091 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SURNARHORREUR — La Bibliothèque Vivante</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Special+Elite&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<!-- GSAP CDN -->
+
+<style>
+/* ═══════════════════════════ VARIABLES ═══════════════════════════ */
+:root {
+  --black: #020202;
+  --blood: #8B0000;
+  --blood-bright: #CC0000;
+  --ash: #1a1a1a;
+  --gray-dark: #2a2a2a;
+  --gray: #555;
+  --gray-light: #888;
+  --white-dim: #c8c2b8;
+  --white: #f0ebe3;
+  --blue-night: #0a0d1a;
+  --blue-cold: #1a2744;
+  --gold-dim: #6b5a2e;
+  --gold: #a8924a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--black);color:var(--white-dim);
+  font-family:'Crimson Text',Georgia,serif;
+  font-size:18px;line-height:1.7;
+  overflow-x:hidden;
+}
+
+/* ═══════════════════════ CURSOR ═══════════════════════ */
+#cursor{
+  position:fixed;width:10px;height:10px;
+  background:var(--blood-bright);border-radius:50%;
+  pointer-events:none;z-index:9999;
+  transform:translate(-50%,-50%);
+  transition:width .2s,height .2s,opacity .2s;
+  opacity:0.9;
+}
+#cursor-ring{
+  position:fixed;width:32px;height:32px;
+  border:1px solid rgba(204,0,0,0.5);border-radius:50%;
+  pointer-events:none;z-index:9998;
+  transform:translate(-50%,-50%);
+  transition:width .3s,height .3s,opacity .3s;
+  opacity:0.7;
+}
+body:has(a:hover) #cursor,body:has(button:hover) #cursor{width:5px;height:5px}
+body:has(a:hover) #cursor-ring,body:has(button:hover) #cursor-ring{width:48px;height:48px}
+
+/* ═══════════════════════ NOISE ═══════════════════════ */
+#noise{
+  position:fixed;inset:0;z-index:9990;pointer-events:none;
+  opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size:128px 128px;
+  animation:grain .12s steps(1) infinite;
+}
+@keyframes grain{
+  0%{transform:translate(0,0)}10%{transform:translate(-2%,-3%)}20%{transform:translate(4%,2%)}
+  30%{transform:translate(-3%,4%)}40%{transform:translate(2%,-2%)}50%{transform:translate(-4%,3%)}
+  60%{transform:translate(3%,-4%)}70%{transform:translate(-1%,2%)}80%{transform:translate(4%,-3%)}
+  90%{transform:translate(-2%,4%)}100%{transform:translate(3%,1%)}
+}
+
+/* ═══════════════════════ WEBGL CANVAS (fog + background) ═══════════════════════ */
+#horror-canvas{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  opacity:.6;
+}
+
+/* ═══════════════════════ INTRO — CINÉMATIQUE ═══════════════════════ */
+#intro{
+  position:fixed;inset:0;z-index:2000;
+  background:#000;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:0;
+  overflow:hidden;
+}
+
+/* Yeux SVG qui s'ouvrent */
+#intro-eyes{
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:clamp(200px,40vw,500px);
+  opacity:0;
+  pointer-events:none;
+}
+
+/* Visage fantôme au fond */
+#intro-face{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;
+  pointer-events:none;
+  filter:blur(2px);
+}
+
+#intro-content{
+  position:relative;z-index:10;
+  display:flex;flex-direction:column;
+  align-items:center;gap:32px;
+  text-align:center;
+}
+
+#intro-text{
+  font-family:'Share Tech Mono',monospace;
+  font-size:clamp(11px,1.8vw,14px);
+  color:var(--blood-bright);
+  text-align:left;
+  width:min(500px,90vw);
+  min-height:80px;
+  letter-spacing:.05em;
+}
+#intro-message{
+  font-family:'Crimson Text',serif;
+  font-size:clamp(18px,3vw,26px);
+  color:var(--white-dim);
+  text-align:center;
+  max-width:500px;
+  opacity:0;font-style:italic;
+  letter-spacing:.03em;
+}
+#enter-btn{
+  font-family:'Special Elite',serif;
+  font-size:13px;letter-spacing:.25em;
+  text-transform:uppercase;
+  color:var(--white-dim);
+  background:transparent;
+  border:1px solid rgba(200,194,184,0.3);
+  padding:16px 40px;cursor:pointer;
+  opacity:0;
+  position:relative;overflow:hidden;
+  transition:border-color .3s,color .3s;
+}
+#enter-btn::after{
+  content:'';position:absolute;inset:0;
+  background:var(--blood);
+  transform:scaleX(0);transform-origin:left;
+  transition:transform 3s linear;z-index:-1;
+}
+#enter-btn.holding::after{transform:scaleX(1)}
+#enter-btn:hover{border-color:var(--blood-bright);color:#fff}
+#hold-hint{
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;color:var(--gray);
+  letter-spacing:.1em;opacity:0;
+}
+#intro.fade-out{animation:fadeOut 1.5s ease forwards}
+@keyframes fadeOut{to{opacity:0;pointer-events:none}}
+
+/* Flicker intro */
+@keyframes introFlicker{
+  0%,100%{opacity:1}
+  92%{opacity:1}93%{opacity:.3}94%{opacity:1}
+  97%{opacity:1}98%{opacity:.1}99%{opacity:.9}
+}
+#intro-face svg{animation:introFlicker 5s ease infinite}
+
+/* ═══════════════════════ MAIN SITE ═══════════════════════ */
+#site{opacity:0;position:relative;z-index:1}
+#site.visible{opacity:1;transition:opacity 2s ease .5s}
+
+/* ═══════════════════════ BREATHING SCREEN ═══════════════════════ */
+@keyframes screenBreathe{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.006)}
+}
+#site.breathing{animation:screenBreathe 6s ease-in-out infinite}
+
+/* ═══════════════════════ FOG LAYER ═══════════════════════ */
+#fog-layer{
+  position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(ellipse 120% 60% at 50% 100%,rgba(8,0,0,0.7) 0%,transparent 70%);
+  animation:fogDrift 12s ease-in-out infinite;
+}
+@keyframes fogDrift{
+  0%,100%{transform:translateX(0) scaleX(1)}
+  33%{transform:translateX(-2%) scaleX(1.02)}
+  66%{transform:translateX(2%) scaleX(0.98)}
+}
+
+/* ═══════════════════════ VIGNETTE ═══════════════════════ */
+#vignette{
+  position:fixed;inset:0;z-index:3;pointer-events:none;
+  background:radial-gradient(ellipse 80% 80% at 50% 50%,transparent 40%,rgba(0,0,0,0.85) 100%);
+}
+
+/* ═══════════════════════ SCANLINES ═══════════════════════ */
+#scanlines{
+  position:fixed;inset:0;z-index:9989;pointer-events:none;
+  opacity:.03;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,1) 2px,rgba(0,0,0,1) 4px);
+  animation:scanMove 8s linear infinite;
+}
+@keyframes scanMove{0%{background-position:0 0}100%{background-position:0 100px}}
+
+/* ═══════════════════════ FLICKER OVERLAY ═══════════════════════ */
+#flicker{
+  position:fixed;inset:0;z-index:9988;pointer-events:none;
+  background:rgba(200,194,184,0);
+  animation:flicker 0.1s steps(1) infinite;
+}
+@keyframes flicker{
+  0%,98%{background:rgba(200,194,184,0)}
+  99%{background:rgba(200,194,184,0.018)}
+  100%{background:rgba(200,194,184,0)}
+}
+
+/* ═══════════════════════ NAV ═══════════════════════ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 40px;
+  background:linear-gradient(to bottom,rgba(2,2,2,0.95),transparent);
+}
+.nav-logo{
+  font-family:'Special Elite',serif;font-size:22px;
+  letter-spacing:.15em;color:var(--white);
+  text-decoration:none;text-transform:uppercase;
+}
+.nav-logo span{color:var(--blood-bright)}
+.nav-links{display:flex;gap:32px}
+.nav-links a{
+  font-family:'Share Tech Mono',monospace;font-size:11px;
+  letter-spacing:.2em;text-transform:uppercase;
+  color:var(--gray-light);text-decoration:none;transition:color .3s;
+}
+.nav-links a:hover{color:var(--blood-bright)}
+.nav-badge{
+  font-family:'Share Tech Mono',monospace;font-size:10px;
+  letter-spacing:.1em;color:var(--blood-bright);
+  border:1px solid var(--blood);padding:4px 10px;
+  animation:pulse-border 2s ease infinite;
+}
+@keyframes pulse-border{0%,100%{border-color:var(--blood)}50%{border-color:var(--blood-bright)}}
+
+/* ═══════════════════════ HERO ═══════════════════════ */
+#hero{
+  min-height:100vh;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  position:relative;overflow:hidden;padding:80px 20px;
+  z-index:5;
+}
+.hero-bg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 60% 80% at 50% 120%,rgba(139,0,0,0.22) 0%,transparent 70%),
+    radial-gradient(ellipse 80% 60% at 20% -10%,rgba(10,13,26,0.9) 0%,transparent 60%),
+    var(--black);
+}
+.hero-lines{
+  position:absolute;inset:0;opacity:.06;
+  background-image:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(200,194,184,0.5) 39px,rgba(200,194,184,0.5) 40px);
+  animation:linesShift 20s linear infinite;
+}
+@keyframes linesShift{0%{background-position:0 0}100%{background-position:0 40px}}
+
+.hero-content{position:relative;text-align:center;max-width:900px}
+
+.hero-eyebrow{
+  font-family:'Share Tech Mono',monospace;font-size:11px;
+  letter-spacing:.35em;text-transform:uppercase;
+  color:var(--blood-bright);margin-bottom:28px;
+  opacity:0;animation:fadeUp 1s ease .5s forwards;
+}
+/* ══ HERO TITLE — canvas separator ══ */
+.hero-title{
+  font-family:'Special Elite',serif;
+  font-size:clamp(52px,10vw,120px);
+  line-height:.9;letter-spacing:-.02em;
+  color:var(--white);text-transform:uppercase;
+  margin-bottom:24px;opacity:0;
+  animation:fadeUp 1s ease .8s forwards;
+  display:flex;flex-direction:column;
+  align-items:center;gap:0;
+}
+.hero-title .blood-word{color:var(--blood-bright)}
+
+/* The canvas sits between SURNAR and HORREUR */
+#hero-canvas-wrap{
+  width:clamp(280px,55vw,680px);
+  position:relative;
+  margin:4px 0;
+  overflow:hidden;
+  border-radius:2px;
+}
+#hero-seq-canvas{
+  width:100%;
+  display:block;
+  aspect-ratio:16/9;
+  object-fit:cover;
+  /* dark vignette on left+right edges to blend with black bg */
+  mask-image:linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(0,0,0,0.7) 8%,
+    black 20%,
+    black 80%,
+    rgba(0,0,0,0.7) 92%,
+    transparent 100%
+  );
+  -webkit-mask-image:linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(0,0,0,0.7) 8%,
+    black 20%,
+    black 80%,
+    rgba(0,0,0,0.7) 92%,
+    transparent 100%
+  );
+}
+/* top/bottom fades to blend with title text */
+#hero-canvas-wrap::before,
+#hero-canvas-wrap::after{
+  content:'';
+  position:absolute;left:0;right:0;height:30%;z-index:2;pointer-events:none;
+}
+#hero-canvas-wrap::before{
+  top:0;
+  background:linear-gradient(to bottom,var(--black) 0%,transparent 100%);
+}
+#hero-canvas-wrap::after{
+  bottom:0;
+  background:linear-gradient(to top,var(--black) 0%,transparent 100%);
+}
+/* grain overlay on canvas */
+#hero-canvas-wrap .hc-grain{
+  position:absolute;inset:0;z-index:3;pointer-events:none;
+  opacity:.06;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:120px;
+  animation:grain .1s steps(1) infinite;
+}
+/* hero loader dots */
+#hero-seq-loader{
+  position:absolute;inset:0;z-index:10;
+  background:var(--black);
+  display:flex;align-items:center;justify-content:center;
+  gap:6px;
+  transition:opacity .6s ease;
+}
+#hero-seq-loader.done{opacity:0;pointer-events:none}
+.hsl-dot{
+  width:4px;height:4px;border-radius:50%;
+  background:var(--blood);
+  animation:hslPulse 1.2s ease infinite;
+}
+.hsl-dot:nth-child(2){animation-delay:.2s}
+.hsl-dot:nth-child(3){animation-delay:.4s}
+@keyframes hslPulse{
+  0%,100%{opacity:.2;transform:scale(.8)}
+  50%{opacity:1;transform:scale(1.3)}
+}
+
+@media(max-width:768px){
+  #hero-canvas-wrap{width:clamp(220px,90vw,440px)}
+}
+.hero-subtitle{
+  font-family:'Crimson Text',serif;
+  font-size:clamp(16px,2.5vw,22px);font-style:italic;
+  color:var(--gray-light);max-width:600px;
+  margin:0 auto 48px;opacity:0;
+  animation:fadeUp 1s ease 1.1s forwards;
+}
+.hero-cta{
+  display:inline-flex;align-items:center;gap:12px;
+  font-family:'Special Elite',serif;font-size:13px;
+  letter-spacing:.2em;text-transform:uppercase;
+  color:var(--white);background:var(--blood);
+  border:none;padding:18px 48px;cursor:pointer;
+  text-decoration:none;
+  opacity:0;animation:fadeUp 1s ease 1.4s forwards;
+  transition:background .3s;
+}
+.hero-cta:hover{background:var(--blood-bright)}
+.hero-cta::after{content:'→'}
+
+/* Hero silhouette — multiple, parallax */
+.hero-silhouette{
+  position:absolute;bottom:0;right:8%;
+  width:clamp(80px,12vw,160px);opacity:.12;
+  animation:silhouetteSway 8s ease-in-out infinite;
+  pointer-events:none;
+}
+.hero-silhouette-2{
+  position:absolute;bottom:0;left:5%;
+  width:clamp(40px,6vw,90px);opacity:.06;
+  animation:silhouetteSway 12s ease-in-out infinite reverse;
+  pointer-events:none;
+  filter:blur(2px);
+}
+@keyframes silhouetteSway{
+  0%,100%{transform:scaleX(1) translateY(0)}
+  50%{transform:scaleX(1.02) translateY(-8px)}
+}
+.hero-scroll-hint{
+  position:absolute;bottom:30px;left:50%;
+  transform:translateX(-50%);
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;letter-spacing:.2em;color:var(--gray);
+  animation:scrollBounce 2s ease infinite;
+}
+@keyframes scrollBounce{
+  0%,100%{transform:translateX(-50%) translateY(0)}
+  50%{transform:translateX(-50%) translateY(6px)}
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+/* ═══════════════════════ SECTION DIVIDER ═══════════════════════ */
+.section-divider{display:flex;align-items:center;gap:20px;margin:0 40px 60px}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:rgba(200,194,184,0.1)}
+.section-divider-text{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--gray)}
+
+/* ═══════════════════════ LIBRARY ═══════════════════════ */
+#library{padding:80px 40px;position:relative;z-index:5}
+.library-header{text-align:center;margin-bottom:70px}
+.section-title{
+  font-family:'Special Elite',serif;
+  font-size:clamp(32px,5vw,56px);
+  color:var(--white);letter-spacing:.05em;text-transform:uppercase;margin-bottom:16px;
+}
+.section-title span{color:var(--blood-bright)}
+.section-lead{font-family:'Crimson Text',serif;font-style:italic;font-size:18px;color:var(--gray-light);max-width:600px;margin:0 auto}
+
+.stories-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));
+  gap:2px;max-width:1200px;margin:0 auto;
+}
+.story-card{
+  position:relative;overflow:hidden;background:var(--ash);
+  cursor:pointer;aspect-ratio:3/4;
+  display:flex;flex-direction:column;justify-content:flex-end;
+  padding:32px 28px;
+  border:1px solid rgba(200,194,184,0.04);
+  transition:transform .4s ease;
+  will-change:transform;
+}
+.story-card:hover{transform:scale(1.01);z-index:2}
+.story-card-bg{
+  position:absolute;inset:0;
+  background-size:cover;background-position:center;
+  opacity:.15;transition:opacity .6s ease,transform .8s ease;
+  filter:grayscale(100%);
+}
+.story-card:hover .story-card-bg{opacity:.3;transform:scale(1.05)}
+.story-card-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(to top,rgba(2,2,2,0.96) 40%,rgba(2,2,2,0.3) 100%);
+}
+
+/* Hover distortion shader effect */
+.story-card::before{
+  content:'';
+  position:absolute;inset:0;z-index:3;pointer-events:none;
+  background:linear-gradient(135deg,rgba(204,0,0,0.04) 0%,transparent 50%,rgba(0,0,204,0.02) 100%);
+  opacity:0;transition:opacity .4s;
+}
+.story-card:hover::before{opacity:1}
+
+.story-card-content{position:relative;z-index:4}
+.story-tag{
+  font-family:'Share Tech Mono',monospace;font-size:10px;
+  letter-spacing:.25em;text-transform:uppercase;
+  color:var(--blood-bright);margin-bottom:12px;
+  display:flex;align-items:center;gap:8px;
+}
+.story-tag::before{content:'';display:block;width:20px;height:1px;background:var(--blood-bright)}
+.story-title{font-family:'Special Elite',serif;font-size:clamp(22px,3vw,32px);color:var(--white);margin-bottom:12px;line-height:1.1}
+.story-excerpt{
+  font-family:'Crimson Text',serif;font-size:15px;font-style:italic;
+  color:var(--gray-light);line-height:1.6;margin-bottom:24px;
+  opacity:0;transform:translateY(10px);
+  transition:opacity .4s ease,transform .4s ease;
+}
+.story-card:hover .story-excerpt{opacity:1;transform:translateY(0)}
+.story-read{pointer-events:none;
+  font-family:'Share Tech Mono',monospace;font-size:11px;
+  letter-spacing:.2em;text-transform:uppercase;
+  color:var(--white);background:none;border:none;
+  text-decoration:none;display:flex;align-items:center;gap:8px;
+  transition:gap .3s,color .3s;cursor:pointer;
+}
+.story-read:hover{gap:14px;color:var(--blood-bright)}
+.story-read::after{content:'→'}
+
+/* Fear meter */
+.fear-meter{position:absolute;top:24px;right:24px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;z-index:5}
+.fear-label{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.15em;color:var(--gray)}
+.fear-bar-track{width:60px;height:2px;background:rgba(200,194,184,0.1)}
+.fear-bar-fill{height:100%;background:linear-gradient(to right,var(--gold),var(--blood-bright))}
+
+/* Card hover ghost eyes */
+.card-ghost-eye{
+  position:absolute;z-index:2;pointer-events:none;
+  opacity:0;transition:opacity 1s ease;
+}
+.story-card:hover .card-ghost-eye{opacity:1}
+
+/* ═══════════════════════ STORY MODAL ═══════════════════════ */
+#story-modal{display:none;position:fixed;inset:0;z-index:500;background:var(--black);overflow-y:auto;-webkit-overflow-scrolling:touch;isolation:isolate;}
+#story-modal.open{display:flex;flex-direction:column;}
+.modal-nav{position:relative;z-index:10;
+  position:sticky;top:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 40px;
+  background:rgba(2,2,2,0.9);
+  border-bottom:1px solid rgba(200,194,184,0.06);
+  backdrop-filter:blur(8px);z-index:10;
+}
+.modal-title-bar{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.2em;color:var(--gray);text-transform:uppercase}
+.modal-close{
+  font-family:'Share Tech Mono',monospace;font-size:11px;
+  letter-spacing:.15em;color:var(--gray-light);
+  background:transparent;border:none;cursor:pointer;
+  text-transform:uppercase;transition:color .2s;
+}
+.modal-close:hover{color:var(--blood-bright)}
+#story-content{position:relative;z-index:5;max-width:680px;margin:0 auto;padding:80px 40px 120px;flex:1}
+.story-content-title{font-family:'Special Elite',serif;font-size:clamp(36px,6vw,64px);color:var(--white);text-transform:uppercase;margin-bottom:12px;line-height:1}
+.story-content-meta{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.2em;color:var(--blood-bright);text-transform:uppercase;margin-bottom:48px;padding-bottom:48px;border-bottom:1px solid rgba(200,194,184,0.08)}
+.story-body{font-family:'Crimson Text',serif;font-size:20px;line-height:1.85;color:var(--white-dim)}
+.story-body p{margin-bottom:28px;transition:opacity .6s ease,transform .6s ease}
+.story-body p.revealed{opacity:1;transform:translateY(0)}
+.story-body p:not(.revealed){opacity:0;transform:translateY(8px)}
+.story-body .scene-break{text-align:center;color:var(--blood);margin:48px 0;font-size:24px;letter-spacing:.5em;opacity:1!important;transform:none!important}
+.story-body .disturbing{color:var(--blood-bright);font-style:italic}
+.story-body .whisper{font-size:14px;color:var(--gray);font-family:'Share Tech Mono',monospace;letter-spacing:.05em}
+.story-body .system-msg{
+  font-family:'Share Tech Mono',monospace;font-size:13px;
+  color:var(--blood-bright);background:rgba(139,0,0,0.08);
+  border-left:2px solid var(--blood);padding:12px 16px;
+  margin:28px 0;letter-spacing:.05em;
+  opacity:1!important;transform:none!important;
+}
+.story-body.glitching{animation:textGlitch .1s steps(1) 3}
+@keyframes textGlitch{
+  0%{transform:translate(0);clip-path:inset(0 0 0 0)}
+  25%{transform:translate(-3px,1px);clip-path:inset(40% 0 20% 0);color:#f00}
+  50%{transform:translate(3px,-1px);clip-path:inset(0 0 80% 0);color:var(--white-dim)}
+  75%{transform:translate(-1px,2px);clip-path:inset(20% 0 50% 0)}
+  100%{transform:translate(0);clip-path:inset(0 0 0 0)}
+}
+
+/* Story — sleep paralysis scene */
+#sleep-scene{
+  position:relative;
+  width:100%;height:220px;
+  background:#050505;
+  margin:32px 0;
+  overflow:hidden;
+  border:1px solid rgba(200,194,184,0.06);
+}
+#sleep-scene canvas{position:absolute;inset:0;width:100%;height:100%}
+.sleep-scene-text{
+  position:absolute;bottom:16px;left:0;right:0;
+  text-align:center;font-family:'Share Tech Mono',monospace;
+  font-size:11px;letter-spacing:.15em;color:rgba(200,194,184,0.3);
+}
+
+/* ═══════════════════════ PRESENCE ═══════════════════════ */
+#presence{
+  position:fixed;bottom:0;right:0;
+  width:clamp(60px,8vw,120px);opacity:0;
+  pointer-events:none;z-index:490;
+  transition:opacity 3s ease;filter:blur(1px);
+}
+#presence.visible{opacity:.18}
+
+/* ═══════════════════════ LORE ═══════════════════════ */
+#lore{padding:100px 40px;background:var(--blue-night);position:relative;overflow:hidden;z-index:5}
+.lore-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));
+  gap:1px;max-width:1200px;margin:60px auto 0;
+}
+.lore-card{
+  padding:40px 32px;background:var(--black);
+  border:1px solid rgba(200,194,184,0.04);
+  position:relative;overflow:hidden;
+  transition:transform .3s ease;
+}
+.lore-card:hover{transform:translateY(-3px)}
+.lore-card::before{
+  content:'';position:absolute;top:0;left:0;
+  width:100%;height:2px;background:var(--blood);
+  transform:scaleX(0);transform-origin:left;transition:transform .4s ease;
+}
+.lore-card:hover::before{transform:scaleX(1)}
+.lore-icon{font-size:28px;margin-bottom:20px;display:block;filter:grayscale(100%);transition:filter .3s}
+.lore-card:hover .lore-icon{filter:grayscale(0%)}
+.lore-card-title{font-family:'Special Elite',serif;font-size:20px;color:var(--white);margin-bottom:12px}
+.lore-card-text{font-family:'Crimson Text',serif;font-size:16px;font-style:italic;color:var(--gray-light);line-height:1.6}
+.lore-number{position:absolute;bottom:16px;right:20px;font-family:'Share Tech Mono',monospace;font-size:48px;color:rgba(200,194,184,0.04);line-height:1}
+
+/* ═══════════════════════ QUIZ ═══════════════════════ */
+#quiz-section{padding:100px 40px;text-align:center;z-index:5;position:relative}
+.quiz-box{max-width:640px;margin:60px auto 0;background:var(--ash);border:1px solid rgba(200,194,184,0.08);padding:48px}
+.quiz-question{font-family:'Crimson Text',serif;font-size:22px;font-style:italic;color:var(--white);margin-bottom:32px}
+.quiz-options{display:grid;gap:12px}
+.quiz-opt{
+  font-family:'Share Tech Mono',monospace;font-size:12px;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--gray-light);background:transparent;
+  border:1px solid rgba(200,194,184,0.12);
+  padding:14px 24px;cursor:pointer;text-align:left;
+  transition:border-color .3s,color .3s,background .3s,transform .15s;
+  position:relative;overflow:hidden;
+}
+.quiz-opt::before{content:attr(data-letter);color:var(--blood);margin-right:16px;font-size:10px}
+.quiz-opt:hover{border-color:var(--blood);color:var(--white);background:rgba(139,0,0,0.08);transform:translateX(4px)}
+.quiz-opt.selected{border-color:var(--blood-bright);color:var(--white);background:rgba(139,0,0,0.15)}
+.quiz-progress{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.2em;color:var(--gray);margin-bottom:32px}
+.quiz-result{display:none;padding:32px;border:1px solid var(--blood);background:rgba(139,0,0,0.06);margin-top:32px}
+.quiz-result.show{display:block}
+.result-profile{font-family:'Special Elite',serif;font-size:28px;color:var(--blood-bright);margin-bottom:12px}
+.result-desc{font-family:'Crimson Text',serif;font-style:italic;font-size:17px;color:var(--gray-light)}
+
+/* ═══════════════════════ FOOTER ═══════════════════════ */
+footer{padding:60px 40px;border-top:1px solid rgba(200,194,184,0.06);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;position:relative;z-index:5}
+.footer-logo{font-family:'Special Elite',serif;font-size:18px;letter-spacing:.1em;text-transform:uppercase;color:var(--gray)}
+.footer-logo span{color:var(--blood)}
+.footer-tagline{font-family:'Crimson Text',serif;font-style:italic;font-size:14px;color:var(--gray)}
+.footer-links{display:flex;gap:24px}
+.footer-links a{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gray);text-decoration:none;transition:color .3s}
+.footer-links a:hover{color:var(--blood-bright)}
+
+/* ═══════════════════════ GLITCH TEXT ═══════════════════════ */
+.glitch-text{position:relative;display:inline-block}
+.glitch-text::before,.glitch-text::after{content:attr(data-text);position:absolute;top:0;left:0;width:100%;height:100%}
+.glitch-text::before{color:#ff0000;animation:glitchTop 4s infinite;clip-path:inset(0 0 60% 0)}
+.glitch-text::after{color:#00ffff;animation:glitchBottom 4s infinite;clip-path:inset(60% 0 0 0)}
+@keyframes glitchTop{0%,94%,96%,100%{transform:none;opacity:0}95%{transform:translate(-3px,0);opacity:.8}}
+@keyframes glitchBottom{0%,96%,98%,100%{transform:none;opacity:0}97%{transform:translate(3px,0);opacity:.8}}
+
+/* ═══════════════════════ ALERTS ═══════════════════════ */
+.fake-system-alert{
+  position:fixed;bottom:30px;left:30px;z-index:9000;
+  background:#0a0a0a;border:1px solid rgba(204,0,0,0.4);
+  border-left:3px solid var(--blood-bright);
+  padding:14px 20px;font-family:'Share Tech Mono',monospace;
+  font-size:12px;letter-spacing:.05em;color:var(--blood-bright);
+  max-width:320px;pointer-events:none;
+  animation:slideInAlert .3s ease,slideOutAlert .5s ease 3.5s forwards;
+}
+@keyframes slideInAlert{from{transform:translateX(-110%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes slideOutAlert{from{transform:translateX(0);opacity:1}to{transform:translateX(-110%);opacity:0}}
+
+/* ═══════════════════════ JUMPSCARE OVERLAY ═══════════════════════ */
+#jumpscare-overlay{
+  position:fixed;inset:0;z-index:9980;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;
+  background:#000;
+}
+#jumpscare-face{
+  width:min(60vw,400px);
+  filter:contrast(2) brightness(0.3);
+  opacity:0;
+}
+
+/* ═══════════════════════ NIGHT MODE ═══════════════════════ */
+body.night-mode::after{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(circle var(--flashlight-size,80px) at var(--mx,50%) var(--my,50%),transparent 0%,rgba(2,2,2,0.97) 100%);
+  pointer-events:none;z-index:9500;
+}
+.night-toggle{
+  position:fixed;bottom:30px;right:30px;z-index:9000;
+  font-family:'Share Tech Mono',monospace;font-size:10px;
+  letter-spacing:.15em;text-transform:uppercase;
+  color:var(--gray-light);background:rgba(2,2,2,0.8);
+  border:1px solid rgba(200,194,184,0.1);padding:10px 16px;
+  cursor:pointer;transition:border-color .3s,color .3s;
+}
+.night-toggle:hover{border-color:var(--blood);color:var(--blood-bright)}
+
+/* ═══════════════════════ BREATH OVERLAY ═══════════════════════ */
+#breath-overlay{
+  position:fixed;inset:0;z-index:495;pointer-events:none;
+  background:var(--black);opacity:0;transition:opacity .08s;
+}
+
+/* ═══════════════════════ GHOST FACES (random apparitions) ═══════════════════════ */
+.ghost-apparition{
+  position:fixed;z-index:9970;pointer-events:none;
+  opacity:0;width:80px;
+  filter:blur(0.5px) contrast(1.5) brightness(.4);
+  animation:ghostAppear .6s ease forwards;
+}
+@keyframes ghostAppear{
+  0%{opacity:0;transform:scale(.8)}
+  30%{opacity:.3}
+  70%{opacity:.18}
+  100%{opacity:0;transform:scale(1.1)}
+}
+
+/* SCROLL REVEAL SECTIONS */
+.reveal-on-scroll{opacity:0;transform:translateY(30px);transition:opacity .8s ease,transform .8s ease}
+.reveal-on-scroll.revealed{opacity:1;transform:translateY(0)}
+
+/* ═══════════════════════ HOVER DISTORT ═══════════════════════ */
+.distort-hover{transition:filter .3s ease}
+.distort-hover:hover{filter:contrast(1.1) saturate(0.8) hue-rotate(5deg)}
+
+/* ═══════════════════════ UTILITY ═══════════════════════ */
+#glitch-filters{position:absolute;width:0;height:0;overflow:hidden}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+
+/* ══════════════════════════════════════════════
+   PHÉNOMÈNES SECTIONS
+══════════════════════════════════════════════ */
+#phenomenes{padding:0;z-index:5;position:relative}
+
+.pheno-section{
+  position:relative;
+  padding:100px 40px;
+  border-top:1px solid rgba(200,194,184,0.05);
+  overflow:hidden;
+  min-height:600px;
+}
+.pheno-section-alt{background:rgba(5,3,8,0.6)}
+
+/* animated background canvas per section */
+.pheno-bg-canvas{
+  position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.35;
+}
+.pheno-canvas{width:100%;height:100%;display:block}
+
+.pheno-grid{
+  position:relative;z-index:2;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:60px;
+  max-width:1200px;margin:0 auto;
+  align-items:start;
+}
+.pheno-grid-reverse{direction:rtl}
+.pheno-grid-reverse>*{direction:ltr}
+
+.pheno-number{
+  font-family:'Share Tech Mono',monospace;
+  font-size:clamp(48px,8vw,96px);
+  color:rgba(139,0,0,0.12);
+  line-height:1;
+  margin-bottom:-20px;
+  font-weight:700;
+}
+.pheno-tag{
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;letter-spacing:.3em;text-transform:uppercase;
+  color:var(--blood-bright);margin-bottom:16px;
+}
+.pheno-title{
+  font-family:'Special Elite',serif;
+  font-size:clamp(26px,3.5vw,44px);
+  color:var(--white);line-height:1.1;
+  margin-bottom:40px;letter-spacing:.02em;
+}
+.pheno-title span{
+  color:var(--blood-bright);
+  display:block;
+}
+
+/* Text blocks */
+.pheno-block{
+  margin-bottom:32px;
+  padding:24px 28px;
+  border-left:2px solid transparent;
+  transition:border-color .4s ease,background .4s ease;
+}
+.pheno-real{border-left-color:rgba(100,120,150,0.3);background:rgba(10,13,26,0.3)}
+.pheno-transition{border-left-color:rgba(100,70,0,0.5);background:rgba(20,12,0,0.4)}
+.pheno-horror{border-left-color:var(--blood);background:rgba(20,0,0,0.35)}
+
+.pheno-section:hover .pheno-real{border-left-color:rgba(100,120,150,0.6)}
+.pheno-section:hover .pheno-horror{border-left-color:var(--blood-bright)}
+
+.pheno-block-label{
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--gray);margin-bottom:12px;
+}
+.pheno-block p{
+  font-family:'Crimson Text',serif;
+  font-size:17px;line-height:1.75;
+  color:var(--white-dim);margin-bottom:14px;
+}
+.pheno-block p:last-child{margin-bottom:0}
+.pheno-horror p em{color:var(--blood-bright);font-style:italic}
+.pheno-final{
+  font-family:'Crimson Text',serif;
+  font-size:16px!important;
+  font-style:italic;
+  color:var(--blood-bright)!important;
+  border-top:1px solid rgba(139,0,0,0.2);
+  padding-top:14px;margin-top:10px;
+}
+
+/* Video column */
+.pheno-video-col{position:relative;top:0}
+.pheno-video-wrap{
+  position:relative;
+  background:#000;
+  aspect-ratio:9/16;
+  max-height:620px;
+  overflow:hidden;
+}
+.pheno-video{
+  width:100%;height:100%;
+  object-fit:cover;
+  display:block;
+  filter:grayscale(30%) contrast(1.1);
+  transition:filter .6s ease;
+}
+.pheno-video-wrap:hover .pheno-video{filter:grayscale(10%) contrast(1.15)}
+
+/* Dark overlay */
+.pheno-video-overlay{
+  position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:
+    linear-gradient(to bottom,rgba(2,2,2,0.5) 0%,transparent 30%,transparent 70%,rgba(2,2,2,0.7) 100%),
+    linear-gradient(to right,rgba(2,2,2,0.2) 0%,transparent 20%,transparent 80%,rgba(2,2,2,0.2) 100%);
+}
+/* Grain on video */
+.pheno-video-grain{
+  position:absolute;inset:0;z-index:3;pointer-events:none;
+  opacity:.08;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:100px 100px;
+  animation:grain .1s steps(1) infinite;
+}
+/* Glitch flash on video hover */
+.pheno-video-wrap::after{
+  content:'';position:absolute;inset:0;z-index:4;pointer-events:none;
+  background:rgba(204,0,0,0.0);
+  transition:background .05s;
+  mix-blend-mode:screen;
+}
+.pheno-video-wrap:hover::after{animation:videoGlitch 6s ease infinite}
+@keyframes videoGlitch{
+  0%,96%{background:rgba(204,0,0,0)}
+  97%{background:rgba(204,0,0,0.04)}
+  97.3%{background:rgba(0,200,255,0.03)}
+  97.6%{background:rgba(204,0,0,0)}
+  100%{background:rgba(204,0,0,0)}
+}
+
+/* Sound button */
+.pheno-sound-btn{
+  position:absolute;bottom:16px;right:16px;z-index:10;
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;letter-spacing:.1em;
+  color:var(--white-dim);
+  background:rgba(2,2,2,0.75);
+  border:1px solid rgba(200,194,184,0.15);
+  padding:8px 14px;
+  cursor:pointer;
+  transition:border-color .3s,color .3s;
+  backdrop-filter:blur(4px);
+}
+.pheno-sound-btn:hover{border-color:var(--blood-bright);color:var(--blood-bright)}
+.pheno-sound-btn.active{color:var(--blood-bright);border-color:var(--blood)}
+
+/* Video caption */
+.pheno-video-caption{
+  font-family:'Share Tech Mono',monospace;
+  font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--gray);margin-top:10px;
+  padding-left:4px;
+}
+
+/* ── VIDEO PLACEHOLDER (shown when no video src) ── */
+.pheno-video-placeholder{
+  position:absolute;inset:0;z-index:5;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:12px;
+  background:linear-gradient(135deg,#090505 0%,#020202 100%);
+  transition:opacity .4s;
+}
+/* hide placeholder if video loads */
+video:not([src=""]):not([src*="placeholder"]) ~ .pheno-video-placeholder,
+video.loaded ~ .pheno-video-placeholder{opacity:0;pointer-events:none}
+
+.vph-icon{font-size:40px;filter:grayscale(100%) brightness(.6)}
+.vph-label{
+  font-family:'Special Elite',serif;
+  font-size:16px;color:rgba(200,194,184,0.5);
+}
+.vph-hint{
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;letter-spacing:.08em;
+  color:rgba(139,0,0,0.6);
+  text-align:center;padding:0 20px;
+}
+.vph-hint code{
+  color:rgba(204,0,0,0.7);
+  font-size:10px;
+}
+
+/* ── PLACEHOLDER ANIMATIONS (substituts visuels) ── */
+
+/* Bulb flicker */
+.bulb-anim{
+  width:40px;height:60px;
+  position:relative;margin-top:8px;
+}
+.bulb-anim::before{
+  content:'';position:absolute;
+  top:0;left:50%;transform:translateX(-50%);
+  width:28px;height:28px;border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;
+  background:rgba(255,220,100,0.15);
+  animation:bulbFlicker 3.1s ease infinite;
+  box-shadow:0 0 12px rgba(255,200,50,0.1);
+}
+.bulb-anim::after{
+  content:'';position:absolute;
+  bottom:0;left:50%;transform:translateX(-50%);
+  width:12px;height:10px;
+  border:1px solid rgba(200,194,184,0.15);
+  background:rgba(10,10,10,0.8);
+}
+@keyframes bulbFlicker{
+  0%,100%{opacity:.4;background:rgba(255,220,100,0.15)}
+  8%{opacity:.05}9%{opacity:.4}
+  42%{opacity:.4}43%{opacity:.08}44%{opacity:.35}
+  71%{opacity:.4}72%{opacity:.02}73%{opacity:.5}74%{opacity:.3}
+}
+
+/* Clock */
+.clock-anim{margin-top:8px}
+.clock-face{
+  width:60px;height:60px;border-radius:50%;
+  border:1px solid rgba(139,0,0,0.3);
+  position:relative;background:rgba(5,0,0,0.8);
+}
+.clock-hand{
+  position:absolute;bottom:50%;left:50%;
+  transform-origin:bottom center;
+  background:rgba(200,194,184,0.6);
+  border-radius:2px;
+}
+.clock-hour{width:2px;height:18px;margin-left:-1px;transform:rotate(90deg)}
+.clock-min{width:1px;height:24px;margin-left:-0.5px;transform:rotate(18deg)}
+.clock-dot{
+  position:absolute;top:50%;left:50%;
+  width:4px;height:4px;border-radius:50%;
+  background:var(--blood-bright);
+  transform:translate(-50%,-50%);
+}
+
+/* Eye tracker */
+.eye-anim{margin-top:8px}
+.eye-anim svg{overflow:visible}
+
+/* Shadow silhouette */
+.shadow-anim{
+  width:50px;height:90px;margin-top:8px;
+  position:relative;opacity:.25;
+  animation:shadowFloat 4s ease-in-out infinite;
+}
+.shadow-anim::before{
+  content:'';position:absolute;
+  top:0;left:50%;transform:translateX(-50%);
+  width:18px;height:22px;border-radius:50%;
+  background:rgba(200,194,184,0.3);
+}
+.shadow-anim::after{
+  content:'';position:absolute;
+  top:26px;left:50%;transform:translateX(-50%);
+  width:28px;height:64px;
+  background:rgba(200,194,184,0.2);
+  clip-path:polygon(15% 0%,85% 0%,100% 100%,0% 100%);
+}
+@keyframes shadowFloat{
+  0%,100%{transform:translateY(0) scaleX(1)}
+  50%{transform:translateY(-6px) scaleX(1.04)}
+}
+
+/* ── SCROLL REVEAL GLITCH on pheno sections ── */
+.pheno-section .pheno-title{
+  opacity:0;transform:translateY(20px);
+  transition:opacity .9s ease,transform .9s ease;
+}
+.pheno-section.in-view .pheno-title{opacity:1;transform:translateY(0)}
+.pheno-section .pheno-block{
+  opacity:0;transform:translateX(-16px);
+  transition:opacity .7s ease,transform .7s ease;
+}
+.pheno-section.in-view .pheno-block{opacity:1;transform:translateX(0)}
+.pheno-section.in-view .pheno-real{transition-delay:.1s}
+.pheno-section.in-view .pheno-transition{transition-delay:.35s}
+.pheno-section.in-view .pheno-horror{transition-delay:.6s}
+.pheno-section .pheno-video-wrap{
+  opacity:0;transform:scale(.96) translateY(20px);
+  transition:opacity 1s ease,transform 1s ease;
+}
+.pheno-section.in-view .pheno-video-wrap{opacity:1;transform:scale(1) translateY(0)}
+
+/* Hover glitch on horror block */
+.pheno-horror:hover{
+  animation:blockGlitch .15s steps(1) 2;
+}
+@keyframes blockGlitch{
+  0%{transform:translateX(0)}25%{transform:translateX(-2px)}
+  50%{transform:translateX(3px)}75%{transform:translateX(-1px)}100%{transform:translateX(0)}
+}
+
+/* Nav link for Phénomènes */
+
+@media(max-width:900px){
+  .pheno-grid{grid-template-columns:1fr;gap:40px}
+  .pheno-grid-reverse{direction:ltr}
+  .pheno-video-wrap{aspect-ratio:16/9;max-height:280px}
+  .pheno-section{padding:60px 20px}
+  #phenomenes .section-divider{margin:0 20px 40px}
+}
+
+@media(max-width:768px){
+  nav{padding:16px 20px}
+  .nav-links{display:none}
+  #library,#lore,#quiz-section{padding:60px 20px}
+  .quiz-box{padding:28px 20px}
+  footer{padding:40px 20px;flex-direction:column}
+  .section-divider{margin:0 20px 40px}
+  .hero-silhouette-2{display:none}
+  body.night-mode::after{background:radial-gradient(circle 60px at var(--mx,50%) var(--my,50%),transparent 0%,rgba(2,2,2,0.98) 100%)}
+}
+
+
+/* Scanlines sur la vidéo */
+.story-video-scanlines {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none;
+  opacity: 0.025;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,1) 2px, rgba(0,0,0,1) 4px
+  );
+}
+/* Glitch flash */
+@keyframes videoFlash {
+  0%,97%{ opacity:0 }
+  97.5%{ opacity:0.08 }
+  98%{ opacity:0 }
+}
+.story-video-glitch {
+  position: absolute; inset: 0; z-index: 4;
+  pointer-events: none;
+  background: rgba(204,0,0,0);
+  animation: videoFlash 7s ease infinite;
+}
+
+
+/* ══════════════════════════════════════════
+   STORY MODAL — VIDEO BACKDROP CINÉMATIQUE
+   La vidéo est en fond plein écran du modal.
+   Le texte flotte par-dessus.
+══════════════════════════════════════════ */
+
+/* Container vidéo fixe dans le modal */
+#story-video-backdrop{position:absolute;inset:0;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.5s ease;}
+#story-video-backdrop.active { opacity: 1; }
+#story-video-backdrop video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  filter: grayscale(25%) contrast(1.1) brightness(0.45);
+}
+
+/* Overlay sombre sur la vidéo pour lisibilité du texte */
+#story-video-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(2,2,2,0.6) 0%,
+    rgba(2,2,2,0.35) 30%,
+    rgba(2,2,2,0.35) 70%,
+    rgba(2,2,2,0.75) 100%
+  );
+  z-index: 1;
+}
+
+/* Grain cinéma sur la vidéo */
+#story-video-grain {
+  position: absolute; inset: 0; z-index: 2;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 120px 120px;
+  animation: grain 0.1s steps(1) infinite;
+  pointer-events: none;
+}
+
+/* Scanlines */
+#story-video-scanlines {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none; opacity: 0.03;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,1) 2px, rgba(0,0,0,1) 4px
+  );
+}
+
+/* Flash glitch rouge */
+@keyframes backdropFlash {
+  0%,96%,100% { opacity:0 }
+  97% { opacity:0.06 }
+  97.5% { opacity:0 }
+}
+#story-video-glitch {
+  position: absolute; inset: 0; z-index: 3;
+  pointer-events: none;
+  background: rgba(204,0,0,1);
+  opacity: 0;
+  animation: backdropFlash 9s ease infinite;
+}
+
+/* Le modal content doit être au-dessus du backdrop */
+#story-modal { position: fixed; inset: 0; z-index: 500; }
+ /* transparent car la vidéo est le fond */
+
+/* Fond semi-transparent derrière le texte pour le rendre lisible */
+#story-content {
+  position: relative;
+  z-index: 10;
+  max-width: 680px; margin: 0 auto;
+  padding: 80px 40px 120px;
+  flex: 1;
+}
+
+/* Texte : fond dégradé derrière chaque paragraphe pour lisibilité */
+.story-body p, .story-body .system-msg, .story-body .scene-break {
+  position: relative;
+}
+
+/* Barre de progression de lecture qui contrôle la vidéo */
+#story-read-progress {
+  position: fixed;
+  top: 60px; left: 0; right: 0;
+  height: 2px; z-index: 520;
+  background: rgba(200,194,184,0.08);
+  pointer-events: none;
+}
+#story-read-progress-fill {
+  height: 100%;
+  background: linear-gradient(to right, transparent, var(--blood-bright));
+  width: 0%;
+  transition: width 0.2s linear;
+}
+
+/* Bouton son repositionné */
+#story-sound-btn {
+  position: fixed;
+  bottom: 30px; right: 30px; z-index: 520;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(200,194,184,0.6);
+  background: rgba(2,2,2,0.75);
+  border: 1px solid rgba(200,194,184,0.12);
+  padding: 10px 16px; cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: color 0.3s, border-color 0.3s;
+  display: none;
+}
+#story-modal.open #story-sound-btn { display: block; }
+#story-sound-btn:hover, #story-sound-btn.on { color: #CC0000; border-color: #8B0000; }
+
+/* Modal nav au-dessus du tout */
+.modal-nav { position: sticky; top: 0; z-index: 515; background: rgba(2,2,2,0.65); backdrop-filter: blur(12px); }
+
+@media (max-width: 768px) {
+  #story-content { padding: 60px 20px 100px; }
+}
+
+
+/* Bloquer scroll page quand modal histoire ouvert */
+body.story-open { overflow: hidden !important; height: 100vh !important; }
+html.story-open-html { overflow: hidden !important; }
+
+
+
+/* BACKDROP VIDÉO — fond plein écran */
+#story-video-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 2s ease;
+  overflow: hidden;
+}
+#story-video-backdrop.active { opacity: 1; }
+#story-backdrop-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(30%) contrast(1.1) brightness(0.4);
+  transform: scale(1.08);
+  will-change: transform, filter;
+}
+/* Overlay sombre pour lire le texte */
+#story-video-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    to bottom,
+    rgba(2,2,2,0.72) 0%,
+    rgba(2,2,2,0.45) 20%,
+    rgba(2,2,2,0.38) 50%,
+    rgba(2,2,2,0.6)  80%,
+    rgba(2,2,2,0.85) 100%
+  );
+}
+/* Grain cinéma */
+#story-video-grain {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none; opacity: 0.08;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 120px;
+  animation: grain .08s steps(1) infinite;
+}
+/* Scanlines */
+#story-video-scanlines {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none; opacity: 0.04;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,1) 2px, rgba(0,0,0,1) 4px
+  );
+}
+/* Glitch flash */
+@keyframes redFlash {
+  0%,95%,100%{opacity:0} 96%{opacity:.07} 96.5%{opacity:0}
+}
+#story-video-glitch {
+  position: absolute; inset: 0; z-index: 3;
+  pointer-events: none;
+  background: #CC0000;
+  opacity: 0;
+  animation: redFlash 8s ease infinite;
+}
+/* Texte au-dessus de la vidéo */
+.modal-nav {
+  position: sticky; top: 0;
+  z-index: 10;
+  background: rgba(2,2,2,0.75);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(200,194,184,0.06);
+}
+#story-content {
+  position: relative;
+  z-index: 5;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 60px 40px 120px;
+}
+/* Barre de progression lecture */
+#story-read-progress {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px; z-index: 550;
+  pointer-events: none;
+}
+#story-read-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(to right, transparent, #CC0000);
+  transition: width 0.15s linear;
+}
+/* Bouton son */
+#story-sound-btn {
+  position: fixed;
+  bottom: 28px; right: 28px;
+  z-index: 550;
+  display: none;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(200,194,184,.55);
+  background: rgba(2,2,2,.8);
+  border: 1px solid rgba(200,194,184,.1);
+  padding: 9px 16px; cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: color .3s, border-color .3s;
+}
+#story-modal.open #story-sound-btn { display: block; }
+#story-sound-btn.on, #story-sound-btn:hover { color: #CC0000; border-color: #8B0000; }
+@media(max-width:768px){
+  #story-content { padding: 40px 20px 100px; }
+  #story-sound-btn { bottom:16px; right:16px; }
+}
+
+
+/* ══ MODAL — VIDÉO FOND PLEIN ÉCRAN ══ */
+#story-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: #000;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  isolation: isolate;
+}
+#story-modal.open { display: flex; flex-direction: column; }
+
+/* Backdrop vidéo : couvre TOUT le modal */
+#story-video-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 501;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 2s ease;
+  overflow: hidden;
+}
+#story-video-backdrop.active { opacity: 1; }
+
+#story-backdrop-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* BEAUCOUP plus lumineux pour être visible */
+  filter: brightness(0.82) contrast(1.05) saturate(0.85);
+  transform: scale(1.06);
+  will-change: transform, filter;
+}
+
+/* Overlay minimal — juste assez pour lire le texte */
+#story-video-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.55) 0%,
+    rgba(0,0,0,0.25) 30%,
+    rgba(0,0,0,0.25) 70%,
+    rgba(0,0,0,0.6) 100%
+  );
+}
+
+/* Grain */
+#story-video-grain {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none; opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 120px;
+  animation: grain .08s steps(1) infinite;
+}
+
+/* Scanlines */
+#story-video-scanlines {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none; opacity: 0.03;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,1) 2px, rgba(0,0,0,1) 4px);
+}
+
+/* Glitch */
+@keyframes redFlash { 0%,95%,100%{opacity:0} 96%{opacity:.05} }
+#story-video-glitch {
+  position: absolute; inset: 0; z-index: 3;
+  pointer-events: none; background: #CC0000;
+  opacity: 0; animation: redFlash 8s ease infinite;
+}
+
+/* Contenu au-dessus de la vidéo */
+.modal-nav {
+  position: sticky; top: 0;
+  z-index: 510;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+#story-content {
+  position: relative;
+  z-index: 505;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 60px 40px 120px;
+}
+
+/* Progress bar */
+#story-read-progress {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 2px; z-index: 550; pointer-events: none;
+}
+#story-read-progress-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(to right, transparent, #CC0000);
+  transition: width 0.15s linear;
+}
+
+/* Bouton son */
+#story-sound-btn {
+  position: fixed; bottom: 24px; right: 24px;
+  z-index: 550; display: none;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+  background: rgba(0,0,0,0.8);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 10px 18px; cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all .3s;
+}
+#story-modal.open #story-sound-btn { display: block; }
+#story-sound-btn:hover, #story-sound-btn.on { color: #CC0000; border-color: #8B0000; }
+
+@media(max-width:768px){
+  #story-content { padding: 40px 18px 100px; }
+}
+
+
+/* ═══ SCROLL LOCK ═══ */
+body.story-open {
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100% !important;
+  top: 0 !important;
+}
+html.story-open-html {
+  overflow: hidden !important;
+}
+
+/* ═══ MODAL HISTOIRE ═══ */
+#story-modal {
+  display: none;
+  position: fixed; inset: 0;
+  z-index: 500;
+  background: #000;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  isolation: isolate;
+}
+#story-modal.open { display: flex; flex-direction: column; }
+
+/* Vidéo PLEIN ÉCRAN derrière le texte */
+#story-video-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 501;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 2s ease;
+  overflow: hidden;
+}
+#story-video-backdrop.active { opacity: 1; }
+
+#story-backdrop-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Lumineux — on voit bien la vidéo */
+  filter: brightness(0.82) contrast(1.05);
+  transform: scale(1.08);
+  will-change: transform, filter;
+}
+
+/* Overlay léger pour lire le texte */
+#story-video-overlay {
+  position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.52) 0%,
+    rgba(0,0,0,0.18) 30%,
+    rgba(0,0,0,0.18) 70%,
+    rgba(0,0,0,0.58) 100%
+  );
+}
+
+/* Grain */
+#story-video-grain {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none; opacity: 0.06;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 120px;
+  animation: grain .08s steps(1) infinite;
+}
+
+/* Scanlines */
+#story-video-scanlines {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none; opacity: 0.03;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,1) 2px,rgba(0,0,0,1) 4px);
+}
+
+/* Glitch rouge */
+@keyframes redFlash { 0%,94%,100%{opacity:0} 95%{opacity:.06} }
+#story-video-glitch {
+  position: absolute; inset: 0; z-index: 3;
+  pointer-events: none; background: #CC0000;
+  opacity: 0; animation: redFlash 8s ease infinite;
+}
+
+/* Contenu texte AU-DESSUS de la vidéo */
+.modal-nav {
+  position: sticky !important; top: 0 !important;
+  z-index: 510 !important;
+  background: rgba(0,0,0,0.78) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid rgba(200,194,184,0.06);
+}
+#story-content {
+  position: relative !important;
+  z-index: 505 !important;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 60px 40px 120px;
+}
+
+/* Barre de progression */
+#story-read-progress {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 2px; z-index: 550; pointer-events: none;
+}
+#story-read-progress-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(to right, transparent, #CC0000);
+  transition: width 0.15s linear;
+}
+
+/* Bouton son */
+#story-sound-btn {
+  position: fixed; bottom: 24px; right: 24px;
+  z-index: 550; display: none;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(255,255,255,0.75);
+  background: rgba(0,0,0,0.82);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 10px 18px; cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all .3s;
+}
+#story-modal.open #story-sound-btn { display: block; }
+#story-sound-btn:hover, #story-sound-btn.on { color: #CC0000; border-color: #8B0000; }
+
+@media (max-width: 768px) {
+  #story-content { padding: 40px 18px 100px; }
+  #story-sound-btn { bottom: 16px; right: 16px; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- SVG Filters -->
+<svg id="glitch-filters" aria-hidden="true">
+  <defs>
+    <filter id="glitch-filter">
+      <feColorMatrix type="matrix" values="1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0"/>
+      <feOffset dx="-3" dy="0" result="r"/>
+      <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0" result="g"/>
+      <feMerge><feMergeNode in="r"/><feMergeNode in="g"/></feMerge>
+    </filter>
+    <filter id="distort-filter" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="turbulence" baseFrequency="0.02" numOctaves="3" result="noise" seed="2">
+        <animate attributeName="baseFrequency" values="0.02;0.04;0.02" dur="3s" repeatCount="indefinite"/>
+      </feTurbulence>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+<!-- Layers -->
+<canvas id="horror-canvas" aria-hidden="true"></canvas>
+<div id="fog-layer" aria-hidden="true"></div>
+<div id="vignette" aria-hidden="true"></div>
+<div id="scanlines" aria-hidden="true"></div>
+<div id="flicker" aria-hidden="true"></div>
+<div id="noise" aria-hidden="true"></div>
+<div id="cursor" aria-hidden="true"></div>
+<div id="cursor-ring" aria-hidden="true"></div>
+<div id="breath-overlay" aria-hidden="true"></div>
+<div id="jumpscare-overlay" aria-hidden="true">
+  <!-- SVG ghost face for jumpscare -->
+  <svg id="jumpscare-face" viewBox="0 0 200 240" aria-hidden="true">
+    <ellipse cx="100" cy="100" rx="80" ry="95" fill="#111"/>
+    <ellipse cx="65" cy="85" rx="22" ry="28" fill="#000"/>
+    <ellipse cx="135" cy="85" rx="22" ry="28" fill="#000"/>
+    <ellipse cx="65" cy="85" rx="10" ry="14" fill="#cc0000"/>
+    <ellipse cx="135" cy="85" rx="10" ry="14" fill="#cc0000"/>
+    <path d="M55 155 Q80 175 100 160 Q120 175 145 155" stroke="#222" stroke-width="3" fill="none"/>
+    <path d="M60 155 Q100 195 140 155" stroke="#111" stroke-width="8" fill="#0a0a0a"/>
+    <line x1="70" y1="155" x2="75" y2="175" stroke="#333" stroke-width="2"/>
+    <line x1="85" y1="158" x2="88" y2="178" stroke="#333" stroke-width="2"/>
+    <line x1="100" y1="160" x2="100" y2="180" stroke="#333" stroke-width="2"/>
+    <line x1="115" y1="158" x2="112" y2="178" stroke="#333" stroke-width="2"/>
+    <line x1="130" y1="155" x2="125" y2="175" stroke="#333" stroke-width="2"/>
+  </svg>
+</div>
+
+<!-- Presence Silhouette -->
+<svg id="presence" viewBox="0 0 80 200" aria-hidden="true">
+  <ellipse cx="40" cy="28" rx="18" ry="22" fill="var(--white-dim)"/>
+  <path d="M10 200 Q8 130 22 90 Q30 68 40 68 Q50 68 58 90 Q72 130 70 200Z" fill="var(--white-dim)"/>
+  <path d="M22 90 Q10 110 4 140" stroke="var(--white-dim)" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M58 90 Q70 110 76 140" stroke="var(--white-dim)" stroke-width="8" fill="none" stroke-linecap="round"/>
+</svg>
+
+<!-- ════════════════════════════════════════════
+     INTRO CINÉMATIQUE ULTRA IMMERSIVE
+════════════════════════════════════════════ -->
+<section id="intro" role="dialog" aria-label="Écran d'introduction">
+
+  <!-- Visage fantôme au fond -->
+  <div id="intro-face" aria-hidden="true">
+    <svg viewBox="0 0 300 360" width="clamp(200px,50vw,500px)" style="opacity:.22;filter:blur(3px) contrast(1.8)">
+      <ellipse cx="150" cy="150" rx="120" ry="140" fill="#0a0a0a"/>
+      <ellipse cx="100" cy="128" rx="30" ry="38" fill="#080808"/>
+      <ellipse cx="200" cy="128" rx="30" ry="38" fill="#080808"/>
+      <ellipse cx="100" cy="128" rx="14" ry="18" fill="#200000"/>
+      <ellipse cx="200" cy="128" rx="14" ry="18" fill="#200000"/>
+      <ellipse cx="104" cy="122" rx="4" ry="5" fill="#550000"/>
+      <ellipse cx="204" cy="122" rx="4" ry="5" fill="#550000"/>
+      <path d="M90 230 Q150 265 210 230" stroke="#111" stroke-width="4" fill="none"/>
+      <path d="M95 230 Q150 280 205 230" stroke="#0a0a0a" stroke-width="12" fill="#050505"/>
+      <path d="M40 60 Q80 20 150 15 Q220 20 260 60" stroke="#0c0c0c" stroke-width="8" fill="none"/>
+    </svg>
+  </div>
+
+  <!-- Yeux qui s'ouvrent -->
+  <svg id="intro-eyes" viewBox="0 0 400 120" aria-hidden="true">
+    <!-- Oeil gauche -->
+    <g transform="translate(70,60)">
+      <ellipse cx="0" cy="0" rx="70" ry="35" fill="#050505" stroke="#1a1a1a" stroke-width="1"/>
+      <ellipse id="eye-l-lid-top" cx="0" cy="-35" rx="70" ry="38" fill="#000"/>
+      <ellipse id="eye-l-lid-bot" cx="0" cy="35" rx="70" ry="38" fill="#000"/>
+      <ellipse cx="0" cy="0" rx="20" ry="20" fill="#0d0000"/>
+      <ellipse cx="0" cy="0" rx="12" ry="12" fill="#000"/>
+      <ellipse cx="-4" cy="-4" rx="3" ry="3" fill="rgba(255,255,255,0.15)"/>
+    </g>
+    <!-- Oeil droit -->
+    <g transform="translate(330,60)">
+      <ellipse cx="0" cy="0" rx="70" ry="35" fill="#050505" stroke="#1a1a1a" stroke-width="1"/>
+      <ellipse id="eye-r-lid-top" cx="0" cy="-35" rx="70" ry="38" fill="#000"/>
+      <ellipse id="eye-r-lid-bot" cx="0" cy="35" rx="70" ry="38" fill="#000"/>
+      <ellipse cx="0" cy="0" rx="20" ry="20" fill="#0d0000"/>
+      <ellipse cx="0" cy="0" rx="12" ry="12" fill="#000"/>
+      <ellipse cx="-4" cy="-4" rx="3" ry="3" fill="rgba(255,255,255,0.15)"/>
+    </g>
+  </svg>
+
+  <div id="intro-content">
+    <div id="intro-text" aria-live="polite"></div>
+    <div id="intro-message">Tu n'aurais peut-être pas dû venir.<br>Mais maintenant que tu es là… reste.</div>
+    <button id="enter-btn" aria-label="Maintenir pour entrer">Maintenir pour entrer</button>
+    <div id="hold-hint" aria-hidden="true">[ maintenir 3 secondes ]</div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     MAIN SITE
+════════════════════════════════════════════ -->
+<div id="site" aria-hidden="true">
+
+  <nav>
+    <a href="#" class="nav-logo">SURNAR<span>HORREUR</span></a>
+    <div class="nav-links">
+      <a href="#library">Bibliothèque</a>
+      <a href="#lore">Le Lore</a>
+      <a href="#quiz-section">Ton Profil</a>
+    </div>
+    <div class="nav-badge">● EN VIE</div>
+  </nav>
+
+  <section id="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-lines"></div>
+    <div class="hero-content">
+      <p class="hero-eyebrow">La bibliothèque vivante de l'horreur</p>
+      <h1 class="hero-title" aria-label="SURNARHORREUR">
+        <span class="glitch-text" data-text="SURNAR">SURNAR</span>
+        <div id="hero-canvas-wrap">
+          <canvas id="hero-seq-canvas" aria-hidden="true"></canvas>
+          <div class="hc-grain" aria-hidden="true"></div>
+          <div id="hero-seq-loader" aria-hidden="true">
+            <div class="hsl-dot"></div>
+            <div class="hsl-dot"></div>
+            <div class="hsl-dot"></div>
+          </div>
+        </div>
+        <span class="blood-word glitch-text" data-text="HORREUR">HORREUR</span>
+      </h1>
+      <p class="hero-subtitle">Chaque histoire est une expérience. Chaque page te rapproche de quelque chose qui ne devrait pas exister.</p>
+      <a href="#library" class="hero-cta">Explorer la bibliothèque</a>
+    </div>
+    <svg class="hero-silhouette" viewBox="0 0 80 200" aria-hidden="true">
+      <ellipse cx="40" cy="28" rx="18" ry="22" fill="var(--white-dim)"/>
+      <path d="M10 200 Q8 130 22 90 Q30 68 40 68 Q50 68 58 90 Q72 130 70 200Z" fill="var(--white-dim)"/>
+      <path d="M22 90 Q10 110 4 140" stroke="var(--white-dim)" stroke-width="8" fill="none" stroke-linecap="round"/>
+      <path d="M58 90 Q70 110 76 140" stroke="var(--white-dim)" stroke-width="8" fill="none" stroke-linecap="round"/>
+    </svg>
+    <svg class="hero-silhouette-2" viewBox="0 0 80 200" aria-hidden="true">
+      <ellipse cx="40" cy="28" rx="18" ry="22" fill="var(--white-dim)"/>
+      <path d="M10 200 Q8 130 22 90 Q30 68 40 68 Q50 68 58 90 Q72 130 70 200Z" fill="var(--white-dim)"/>
+      <path d="M22 90 Q10 110 4 140" stroke="var(--white-dim)" stroke-width="8" fill="none" stroke-linecap="round"/>
+      <path d="M58 90 Q70 110 76 140" stroke="var(--white-dim)" stroke-width="8" fill="none" stroke-linecap="round"/>
+    </svg>
+    <p class="hero-scroll-hint" aria-hidden="true">↓ scroll ↓</p>
+  </section>
+
+  <section id="library" aria-label="Bibliothèque des histoires">
+
+    <div class="section-divider"><span class="section-divider-text">Bibliothèque</span></div>
+
+    <!-- ══ RÉVÉLATION DU LIVRE — origine des histoires ══ -->
+    <div style="text-align:center;padding:0 40px 60px;position:relative;">
+      <p class="hero-eyebrow" style="opacity:1;animation:none;margin-bottom:16px;">Document classifié · Origine confirmée</p>
+      <h2 class="section-title">Ce que tu crois <span>comprendre</span></h2>
+      <p class="section-lead" style="margin-top:12px;max-width:580px;margin-left:auto;margin-right:auto;">
+        Tout vient de là. Un livre qui ne devrait pas exister.<br>
+        Fais défiler pour l'ouvrir — et comprendre d'où viennent les histoires.
+      </p>
+    </div>
+
+    <!-- ══ ZONE DE SCROLL SÉQUENCE (600vh) ══ -->
+    <div id="seq-wrapper" style="position:relative;height:600vh;background:var(--black);">
+      <div id="seq-sticky" style="position:sticky;top:0;height:100vh;width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;perspective:1000px;">
+
+        <canvas id="seq-canvas" aria-hidden="true" style="position:absolute;width:100%;height:100%;display:block;transform-origin:50% 55%;will-change:transform,filter;"></canvas>
+
+        <!-- Overlays -->
+        <div id="seq-vignette"  aria-hidden="true" style="position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse 80% 80% at 50% 50%,transparent 30%,rgba(0,0,0,0.72) 100%);"></div>
+        <div id="seq-chroma"    aria-hidden="true" style="position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;background:radial-gradient(ellipse 100% 100% at 0% 50%,rgba(255,0,0,0.06) 0%,transparent 55%),radial-gradient(ellipse 100% 100% at 100% 50%,rgba(0,60,255,0.06) 0%,transparent 55%);mix-blend-mode:screen;"></div>
+        <div id="seq-blood-fog" aria-hidden="true" style="position:absolute;bottom:0;left:0;right:0;height:40%;z-index:6;pointer-events:none;opacity:0;background:linear-gradient(to top,rgba(80,0,0,0.55) 0%,rgba(40,0,0,0.2) 50%,transparent 100%);transition:opacity 1.2s ease;"></div>
+        <div id="seq-flash"     aria-hidden="true" style="position:absolute;inset:0;z-index:7;pointer-events:none;background:#fff;opacity:0;"></div>
+
+        <!-- Textes synchronisés -->
+        <div style="position:absolute;inset:0;z-index:10;pointer-events:none;display:flex;align-items:center;justify-content:center;">
+
+          <div class="seq-ph" id="sq-ph0" style="position:absolute;text-align:center;padding:0 clamp(20px,5vw,80px);max-width:660px;opacity:0;transition:opacity .6s ease,transform .6s ease;transform:translateY(16px);">
+            <p style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:#CC0000;margin-bottom:14px;">Bibliothèque Vivante · Tome I</p>
+            <h3 style="font-family:'Special Elite',serif;font-size:clamp(22px,4vw,54px);color:#f0ebe3;text-transform:uppercase;line-height:1.05;text-shadow:0 0 60px #000,0 0 20px #000;margin-bottom:14px;">Ce que tu crois<br><span style="color:#CC0000">comprendre</span></h3>
+            <p style="font-family:'Crimson Text',serif;font-style:italic;font-size:clamp(14px,1.8vw,19px);color:#888;line-height:1.7;text-shadow:0 0 30px #000;">Un livre. C'est là que tout commence.<br>Continue à défiler.</p>
+          </div>
+
+          <div class="seq-ph" id="sq-ph1" style="position:absolute;text-align:center;padding:0 clamp(20px,5vw,80px);max-width:660px;opacity:0;transition:opacity .6s ease,transform .6s ease;transform:translateY(16px);">
+            <p style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:#CC0000;margin-bottom:14px;">Pages 1 — 47 · Déverrouillées</p>
+            <h3 style="font-family:'Special Elite',serif;font-size:clamp(22px,4vw,54px);color:#f0ebe3;text-transform:uppercase;line-height:1.05;text-shadow:0 0 60px #000,0 0 20px #000;margin-bottom:14px;">Il commence<br><span style="color:#CC0000">à s'ouvrir</span></h3>
+            <p style="font-family:'Crimson Text',serif;font-style:italic;font-size:clamp(14px,1.8vw,19px);color:#888;line-height:1.7;text-shadow:0 0 30px #000;">Chaque page est une histoire.<br>Chaque histoire a eu lieu.</p>
+          </div>
+
+          <div class="seq-ph" id="sq-ph2" style="position:absolute;text-align:center;padding:0 clamp(20px,5vw,80px);max-width:660px;opacity:0;transition:opacity .6s ease,transform .6s ease;transform:translateY(16px);">
+            <p style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:#CC0000;margin-bottom:14px;">Entités documentées · En fuite</p>
+            <h3 style="font-family:'Special Elite',serif;font-size:clamp(22px,4vw,54px);color:#f0ebe3;text-transform:uppercase;line-height:1.05;text-shadow:0 0 60px #000,0 0 20px #000;margin-bottom:14px;">Quelque chose<br><span style="color:#CC0000">en sort</span></h3>
+            <p style="font-family:'Crimson Text',serif;font-style:italic;font-size:clamp(14px,1.8vw,19px);color:#888;line-height:1.7;text-shadow:0 0 30px #000;">Les histoires ne sont pas dans le livre.<br>Elles <em style="color:#CC0000">étaient</em> dans le livre.</p>
+            <p style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.06em;color:#CC0000;border-left:2px solid #8B0000;padding:10px 14px;margin-top:16px;text-align:left;display:inline-block;background:rgba(139,0,0,0.08);">> Présence confirmée.<br>> Origine : Tome I, page inconnue.</p>
+          </div>
+
+          <div class="seq-ph" id="sq-ph3" style="position:absolute;text-align:center;padding:0 clamp(20px,5vw,80px);max-width:660px;opacity:0;transition:opacity .6s ease,transform .6s ease;transform:translateY(16px);">
+            <p style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:#CC0000;margin-bottom:14px;">Accès bibliothèque · Déverrouillé</p>
+            <h3 style="font-family:'Special Elite',serif;font-size:clamp(22px,4vw,54px);color:#f0ebe3;text-transform:uppercase;line-height:1.05;text-shadow:0 0 60px #000,0 0 20px #000;margin-bottom:14px;">Elles sont<br><span style="color:#CC0000">déjà là</span></h3>
+            <p style="font-family:'Crimson Text',serif;font-style:italic;font-size:clamp(14px,1.8vw,19px);color:#888;line-height:1.7;text-shadow:0 0 30px #000;">Tu as ouvert le livre.<br>Les histoires t'attendent maintenant.</p>
+            <p style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.06em;color:#CC0000;border-left:2px solid #8B0000;padding:10px 14px;margin-top:16px;text-align:left;display:inline-block;background:rgba(139,0,0,0.08);">> Bibliothèque déverrouillée.<br>> Choisis ton histoire.</p>
+          </div>
+
+        </div>
+
+        <!-- HUD -->
+        <div style="position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:20;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:6px;">
+          <div style="width:140px;height:1px;background:rgba(200,194,184,0.1);position:relative;">
+            <div id="sq-fill" style="position:absolute;top:0;left:0;height:100%;background:#CC0000;box-shadow:0 0 6px #8B0000;width:0%;transition:width .08s linear;"></div>
+          </div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:rgba(200,194,184,0.22);">Ouverture en cours</div>
+          <div id="sq-frame" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(139,0,0,0.4);letter-spacing:.1em;">001 / 240</div>
+        </div>
+
+        <!-- Scroll hint -->
+        <div id="sq-hint" style="position:absolute;bottom:72px;left:50%;transform:translateX(-50%);z-index:20;pointer-events:none;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:rgba(200,194,184,0.3);display:flex;flex-direction:column;align-items:center;gap:6px;animation:scrollBounce 2.5s ease infinite;">
+          <span style="font-size:14px;color:#8B0000;">↓</span>
+          Ouvrir
+        </div>
+
+        <!-- Loader -->
+        <div id="sq-loader" style="position:absolute;inset:0;z-index:50;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .8s ease;">
+          <p style="font-family:'Special Elite',serif;font-size:18px;letter-spacing:.15em;text-transform:uppercase;color:#c8c2b8;">Le livre s'éveille…</p>
+          <div style="width:180px;height:1px;background:rgba(200,194,184,0.1);position:relative;">
+            <div id="sq-ld-fill" style="position:absolute;top:0;left:0;height:100%;background:#8B0000;width:0%;transition:width .1s;"></div>
+          </div>
+          <p id="sq-ld-pct" style="font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:.2em;color:#CC0000;">0 %</p>
+          <p style="font-family:'Crimson Text',serif;font-style:italic;font-size:14px;color:#555;">Chargement de la séquence</p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ TRANSITION NARRATIVE → HISTOIRES ══ -->
+    <div style="text-align:center;padding:80px 40px 60px;background:linear-gradient(to bottom,#000,var(--black));border-bottom:1px solid rgba(139,0,0,0.12);">
+      <p style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:#CC0000;margin-bottom:16px;">Elles sont sorties · Tu dois choisir</p>
+      <h2 class="section-title">Les <span>Histoires</span></h2>
+      <p class="section-lead" style="margin-top:12px;">Chacune libérée par ce livre. Chacune conçue pour te hanter.</p>
+    </div>
+
+    <div class="stories-grid">
+      <article class="story-card distort-hover" data-story="sleep" onclick="openStory('sleep')">
+        <div class="story-card-bg" style="background:radial-gradient(ellipse at 50% 30%,#330000 0%,#000 70%)"></div>
+        <div class="story-card-overlay"></div>
+        <!-- Ghost eyes on card -->
+        <svg class="card-ghost-eye" style="top:40%;left:20%;width:40px" viewBox="0 0 60 30" aria-hidden="true">
+          <ellipse cx="30" cy="15" rx="28" ry="14" fill="none" stroke="rgba(204,0,0,0.3)" stroke-width="1"/>
+          <ellipse cx="30" cy="15" rx="10" ry="10" fill="rgba(139,0,0,0.4)"/>
+          <ellipse cx="30" cy="15" rx="5" ry="5" fill="rgba(0,0,0,0.8)"/>
+        </svg>
+        <div class="fear-meter" aria-label="Peur extrême">
+          <span class="fear-label">PEUR</span>
+          <div class="fear-bar-track"><div class="fear-bar-fill" style="width:95%"></div></div>
+        </div>
+        <div class="story-card-content">
+          <p class="story-tag">Paralysie du sommeil</p>
+          <h3 class="story-title">Quelque chose dans le Noir</h3>
+          <p class="story-excerpt">Tu ouvres les yeux. Tu ne peux pas bouger. Dans le coin de la chambre, quelque chose attend depuis un moment déjà.</p>
+          <button class="story-read" onclick="openStory('sleep')">Lire</button>
+        </div>
+      </article>
+      <article class="story-card distort-hover" data-story="mirror" onclick="openStory('mirror')">
+        <div class="story-card-bg" style="background:radial-gradient(ellipse at 50% 20%,#001122 0%,#000 70%)"></div>
+        <div class="story-card-overlay"></div>
+        <svg class="card-ghost-eye" style="top:35%;right:25%;width:35px" viewBox="0 0 60 30" aria-hidden="true">
+          <ellipse cx="30" cy="15" rx="28" ry="14" fill="none" stroke="rgba(0,50,100,0.3)" stroke-width="1"/>
+          <ellipse cx="30" cy="15" rx="10" ry="10" fill="rgba(0,20,80,0.4)"/>
+          <ellipse cx="30" cy="15" rx="5" ry="5" fill="rgba(0,0,0,0.8)"/>
+        </svg>
+        <div class="fear-meter" aria-label="Peur élevée">
+          <span class="fear-label">PEUR</span>
+          <div class="fear-bar-track"><div class="fear-bar-fill" style="width:80%"></div></div>
+        </div>
+        <div class="story-card-content">
+          <p class="story-tag">Psychologie · Miroir</p>
+          <h3 class="story-title">Le Reflet</h3>
+          <p class="story-excerpt">Deux secondes. C'est le délai imperceptible entre toi et ce miroir. Imperceptible, jusqu'à ce que ça ne le soit plus.</p>
+          <button class="story-read" onclick="openStory('mirror')">Lire</button>
+        </div>
+      </article>
+      <article class="story-card distort-hover" data-story="signal" onclick="openStory('signal')">
+        <div class="story-card-bg" style="background:radial-gradient(ellipse at 30% 50%,#001a00 0%,#000 70%)"></div>
+        <div class="story-card-overlay"></div>
+        <div class="fear-meter" aria-label="Peur moyenne">
+          <span class="fear-label">PEUR</span>
+          <div class="fear-bar-track"><div class="fear-bar-fill" style="width:65%"></div></div>
+        </div>
+        <div class="story-card-content">
+          <p class="story-tag">ARG · Signal</p>
+          <h3 class="story-title">Fréquence 47</h3>
+          <p class="story-excerpt">Une fréquence radio captée par erreur. Un message qui ne devrait pas exister. Une adresse. Es-tu certain de vouloir chercher ?</p>
+          <button class="story-read" onclick="openStory('signal')">Lire</button>
+        </div>
+      </article>
+      <article class="story-card distort-hover" data-story="bulb" onclick="openStory('bulb')">
+        <div class="story-card-bg" style="background:radial-gradient(ellipse at 50% 60%,#1a1000 0%,#000 70%)"></div>
+        <div class="story-card-overlay"></div>
+        <div class="fear-meter" aria-label="Peur : psychologique">
+          <span class="fear-label">PEUR</span>
+          <div class="fear-bar-track"><div class="fear-bar-fill" style="width:70%"></div></div>
+        </div>
+        <div class="story-card-content">
+          <p class="story-tag">Électricité · Physique</p>
+          <h3 class="story-title">Pourquoi une ampoule clignote sans raison ?</h3>
+          <p class="story-excerpt">Une variation de tension. Un filament qui faiblit. C'est ce qu'ils te disent. Mais elle clignote toujours quand tu es seul.</p>
+          <button class="story-read" onclick="openStory('bulb')">Lire</button>
+        </div>
+      </article>
+      <article class="story-card distort-hover" data-story="wake" onclick="openStory('wake')">
+        <div class="story-card-bg" style="background:radial-gradient(ellipse at 50% 30%,#00001a 0%,#000 70%)"></div>
+        <div class="story-card-overlay"></div>
+        <div class="fear-meter" aria-label="Peur : élevée">
+          <span class="fear-label">PEUR</span>
+          <div class="fear-bar-track"><div class="fear-bar-fill" style="width:88%"></div></div>
+        </div>
+        <div class="story-card-content">
+          <p class="story-tag">Chronobiologie · Sommeil</p>
+          <h3 class="story-title">Pourquoi je me réveille toujours à la même heure ?</h3>
+          <p class="story-excerpt">3h03. Toujours 3h03. Ton cerveau biologique, te disent-ils. Mais la respiration que tu entends — ce n'est pas la tienne.</p>
+          <button class="story-read" onclick="openStory('wake')">Lire</button>
+        </div>
+      </article>
+      <article class="story-card distort-hover" data-story="watched" onclick="openStory('watched')">
+        <div class="story-card-bg" style="background:radial-gradient(ellipse at 50% 50%,#100000 0%,#000 70%)"></div>
+        <div class="story-card-overlay"></div>
+        <div class="fear-meter" aria-label="Peur : intense">
+          <span class="fear-label">PEUR</span>
+          <div class="fear-bar-track"><div class="fear-bar-fill" style="width:85%"></div></div>
+        </div>
+        <div class="story-card-content">
+          <p class="story-tag">Neurologie · Perception</p>
+          <h3 class="story-title">Pourquoi j'ai l'impression d'être observé ?</h3>
+          <p class="story-excerpt">Ton cerveau détecte les regards. Un mécanisme de survie, expliquent-ils. Mais ce coin — toujours le même coin — depuis deux semaines.</p>
+          <button class="story-read" onclick="openStory('watched')">Lire</button>
+        </div>
+      </article>
+    </div>
+  </section>
+
+
+
+  <section id="lore">
+    <div class="section-divider" style="margin:0 40px 60px"><span class="section-divider-text">Le Lore</span></div>
+    <div class="library-header reveal-on-scroll" style="text-align:center;margin-bottom:0">
+      <h2 class="section-title">Pourquoi <span>SURNAR</span> ?</h2>
+      <p class="section-lead">Ce n'est pas un site. C'est quelque chose qui a commencé à exister.</p>
+    </div>
+    <div class="lore-grid">
+      <div class="lore-card reveal-on-scroll">
+        <span class="lore-icon" aria-hidden="true">🕯</span>
+        <h3 class="lore-card-title">Basé sur le réel</h3>
+        <p class="lore-card-text">Chaque histoire puise dans des phénomènes documentés. Paralysie du sommeil, effet Capgras, Troxler… La science est parfois plus terrifiante que la fiction.</p>
+        <span class="lore-number" aria-hidden="true">01</span>
+      </div>
+      <div class="lore-card reveal-on-scroll" style="transition-delay:.1s">
+        <span class="lore-icon" aria-hidden="true">🧠</span>
+        <h3 class="lore-card-title">Conçu pour te hanter</h3>
+        <p class="lore-card-text">Nos récits utilisent des techniques de tension psychologique éprouvées. Ce que tu n'entends pas est plus efficace que ce que tu vois.</p>
+        <span class="lore-number" aria-hidden="true">02</span>
+      </div>
+      <div class="lore-card reveal-on-scroll" style="transition-delay:.2s">
+        <span class="lore-icon" aria-hidden="true">👁</span>
+        <h3 class="lore-card-title">Le site t'observe</h3>
+        <p class="lore-card-text">Ton comportement est analysé. Tes hésitations. Tes tentatives d'échappement. Les histoires s'adaptent. Rien ne se répète vraiment.</p>
+        <span class="lore-number" aria-hidden="true">03</span>
+      </div>
+      <div class="lore-card reveal-on-scroll" style="transition-delay:.3s">
+        <span class="lore-icon" aria-hidden="true">🔐</span>
+        <h3 class="lore-card-title">Secrets à déverrouiller</h3>
+        <p class="lore-card-text">Des pages cachées. Des codes dissimulés. Un ARG qui se résout collectivement. Certains contenus ne sont accessibles qu'à 3h03.</p>
+        <span class="lore-number" aria-hidden="true">04</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="quiz-section">
+    <div class="section-divider"><span class="section-divider-text">Ton Profil</span></div>
+    <h2 class="section-title reveal-on-scroll">Quel est ton <span>Profil de Peur</span> ?</h2>
+    <p class="section-lead reveal-on-scroll" style="text-align:center;max-width:500px;margin:16px auto 0;font-family:'Crimson Text',serif;font-style:italic;color:var(--gray-light)">Réponds honnêtement. Les histoires te trouveront.</p>
+    <div class="quiz-box reveal-on-scroll" role="form" aria-label="Quiz de profil de peur">
+      <div id="quiz-inner">
+        <p class="quiz-progress" id="quiz-progress">QUESTION 1 / 3</p>
+        <p class="quiz-question" id="quiz-q">La nuit, tu entends un bruit dans la pièce d'à côté. Que fais-tu ?</p>
+        <div class="quiz-options" id="quiz-opts">
+          <button class="quiz-opt" data-letter="A" data-val="0" onclick="quizAnswer(this)">Tu ignores. C'est probablement rien.</button>
+          <button class="quiz-opt" data-letter="B" data-val="1" onclick="quizAnswer(this)">Tu écoutes, tendu, sans bouger.</button>
+          <button class="quiz-opt" data-letter="C" data-val="2" onclick="quizAnswer(this)">Tu vas vérifier. Il faut savoir.</button>
+          <button class="quiz-opt" data-letter="D" data-val="3" onclick="quizAnswer(this)">Tu te caches et tu attends que ça passe.</button>
+        </div>
+      </div>
+      <div class="quiz-result" id="quiz-result" aria-live="polite">
+        <p class="result-profile" id="result-profile"></p>
+        <p class="result-desc" id="result-desc"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       SECTION : PHÉNOMÈNES RÉELS
+  ════════════════════════════════════════════ -->
+  <footer>
+    <div>
+      <p class="footer-logo">SURNAR<span>HORREUR</span></p>
+      <p class="footer-tagline">La bibliothèque vivante de l'horreur</p>
+    </div>
+    <div class="footer-links">
+      <a href="#">À propos</a>
+      <a href="#">Contenu pour adultes</a>
+      <a href="#">Contact</a>
+    </div>
+  </footer>
+</div>
+
+
+<!-- STORY MODAL -->
+<div id="story-modal" role="dialog" aria-modal="true" aria-label="Lecteur d'histoire">
+<!-- ══ VIDEO BACKDROP — fond cinématique du modal ══ -->
+<div id="story-video-backdrop" aria-hidden="true">
+  <video id="story-backdrop-video" autoplay muted loop playsinline preload="none"></video>
+  <div id="story-video-overlay"></div>
+  <div id="story-video-grain"></div>
+  <div id="story-video-scanlines"></div>
+  <div id="story-video-glitch"></div>
+</div>
+<button id="story-sound-btn" onclick="toggleBackdropSound()" aria-label="Activer le son">🔇 Son</button>
+<div id="story-read-progress" aria-hidden="true">
+  <div id="story-read-progress-fill"></div>
+</div>
+
+
+  <div class="modal-nav">
+    <span class="modal-title-bar" id="modal-story-label">SURNARHORREUR — Lecture</span>
+    <button class="modal-close" onclick="closeStory()" aria-label="Fermer">✕ Fermer</button>
+  </div>
+  <div id="story-content"></div>
+</div>
+
+<button class="night-toggle" onclick="toggleNight()" id="night-btn" aria-label="Mode nuit">🕯 Nuit totale</button>
+
+<script>
+/* ── GSAP STUB — safe no-op when CDN unavailable ── */
+(function(){
+  function noop(){}
+  function ret(){ return {then:noop, kill:noop}; }
+  var gsap = {
+    to:       function(el,props){ applyGsapTo(el,props); return ret(); },
+    fromTo:   function(el,from,to){ applyGsapFromTo(el,from,to); return ret(); },
+    set:      function(el,props){ applyGsapSet(el,props); return ret(); },
+    timeline: function(){ return {to:noop,fromTo:noop,set:noop,add:noop}; },
+    registerPlugin: noop,
+    utils:{ toArray: function(s){ return typeof s==='string' ? Array.from(document.querySelectorAll(s)) : [s]; }}
+  };
+
+  function applyGsapSet(el, props){
+    var targets = gsap.utils.toArray(el);
+    targets.forEach(function(t){
+      if(!t || !t.style) return;
+      if(props.x !== undefined) t.style.transform = 'translateX('+props.x+'px)';
+      if(props.opacity !== undefined) t.style.opacity = props.opacity;
+      if(props.filter !== undefined) t.style.filter = props.filter;
+    });
+  }
+
+  function applyGsapTo(el, props){
+    var targets = gsap.utils.toArray(el);
+    var dur = (props.duration||0.3)*1000;
+    targets.forEach(function(t){
+      if(!t || !t.style) return;
+      t.style.transition = 'opacity '+dur+'ms ease, transform '+dur+'ms ease, filter '+dur+'ms ease';
+      if(props.opacity !== undefined) t.style.opacity = props.opacity;
+      if(props.y !== undefined) t.style.transform = 'translateY('+props.y+'px)';
+      if(props.x !== undefined) t.style.transform = 'translateX('+props.x+'px)';
+      if(props.scale !== undefined) t.style.transform = 'scale('+props.scale+')';
+      if(props.filter !== undefined) t.style.filter = props.filter;
+      if(typeof props.onComplete === 'function'){
+        setTimeout(props.onComplete, dur);
+      }
+    });
+  }
+
+  function applyGsapFromTo(el, from, to){
+    applyGsapSet(el, from);
+    setTimeout(function(){ applyGsapTo(el, to); }, 20);
+  }
+
+  window.gsap = gsap;
+
+  /* ScrollTrigger stub */
+  window.ScrollTrigger = {
+    create: function(cfg){
+      if(!cfg || !cfg.trigger) return;
+      var io = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if(e.isIntersecting && cfg.onEnter) cfg.onEnter({progress:0.5});
+          if(cfg.scrub && cfg.onUpdate) cfg.onUpdate({progress:0.5});
+        });
+      },{threshold:0.1});
+      var el = typeof cfg.trigger==='string' ? document.querySelector(cfg.trigger) : cfg.trigger;
+      if(el) io.observe(el);
+    },
+    refresh: noop
+  };
+})();
+</script>
+<script>
+/* ══════════════════════════════════════════
+   CURSOR
+══════════════════════════════════════════ */
+const cursorEl = document.getElementById('cursor');
+const cursorRing = document.getElementById('cursor-ring');
+let mx = innerWidth/2, my = innerHeight/2, rx = mx, ry = my;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursorEl.style.left = mx+'px'; cursorEl.style.top = my+'px';
+  if(document.body.classList.contains('night-mode')){
+    document.body.style.setProperty('--mx', mx+'px');
+    document.body.style.setProperty('--my', my+'px');
+  }
+});
+(function animRing(){
+  rx += (mx-rx)*.1; ry += (my-ry)*.1;
+  cursorRing.style.left = rx+'px'; cursorRing.style.top = ry+'px';
+  requestAnimationFrame(animRing);
+})();
+
+/* ══════════════════════════════════════════
+   WEB AUDIO ENGINE
+══════════════════════════════════════════ */
+let audioCtx=null, ambientGain=null, masterGain=null;
+let noiseNode=null, noiseGain=null;
+let reverbNode=null;
+
+function initAudio(){
+  if(audioCtx) return;
+  audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.85;
+  masterGain.connect(audioCtx.destination);
+
+  // Reverb convolver (fake impulse)
+  reverbNode = audioCtx.createConvolver();
+  const revLen = audioCtx.sampleRate * 2.5;
+  const revBuf = audioCtx.createBuffer(2, revLen, audioCtx.sampleRate);
+  for(let ch=0;ch<2;ch++){
+    const d = revBuf.getChannelData(ch);
+    for(let i=0;i<revLen;i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/revLen, 2.5);
+  }
+  reverbNode.buffer = revBuf;
+  reverbNode.connect(masterGain);
+
+  // Infra-son
+  const infraOsc = audioCtx.createOscillator();
+  const infraGain = audioCtx.createGain();
+  infraOsc.frequency.value = 18.5; infraOsc.type = 'sine';
+  infraGain.gain.value = 0;
+  infraOsc.connect(infraGain); infraGain.connect(masterGain);
+  infraOsc.start();
+  setTimeout(()=>{
+    infraGain.gain.linearRampToValueAtTime(0.07, audioCtx.currentTime+4);
+  }, 800);
+
+  // Bruit brun ambiant (fond d'ambiance)
+  const bufSize = audioCtx.sampleRate * 4;
+  const noiseBuf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+  for(let i=0;i<bufSize;i++){
+    const wh = Math.random()*2-1;
+    b0=0.99886*b0+wh*0.0555179; b1=0.99332*b1+wh*0.0750759;
+    b2=0.96900*b2+wh*0.1538520; b3=0.86650*b3+wh*0.3104856;
+    b4=0.55000*b4+wh*0.5329522; b5=-0.7616*b5-wh*0.0168980;
+    nd[i]=(b0+b1+b2+b3+b4+b5+b6+wh*0.5362)*0.11;
+    b6=wh*0.115926;
+  }
+  noiseNode = audioCtx.createBufferSource();
+  noiseNode.buffer = noiseBuf; noiseNode.loop = true;
+  noiseGain = audioCtx.createGain(); noiseGain.gain.value = 0;
+  const lpf = audioCtx.createBiquadFilter();
+  lpf.type='lowpass'; lpf.frequency.value=200;
+  noiseNode.connect(lpf); lpf.connect(noiseGain); noiseGain.connect(reverbNode);
+  noiseNode.start();
+
+  ambientGain = infraGain;
+}
+
+function fadeInAmbient(vol=0.07, dur=3){
+  if(!audioCtx) return;
+  noiseGain.gain.cancelScheduledValues(audioCtx.currentTime);
+  noiseGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime+dur);
+}
+
+function playTone(freq=440,dur=.3,vol=.1,type='sine'){
+  if(!audioCtx) return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.frequency.value=freq; o.type=type;
+  g.gain.setValueAtTime(vol,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);
+  o.connect(g); g.connect(masterGain); o.start(); o.stop(audioCtx.currentTime+dur);
+}
+
+function playNoise(dur=.15, vol=.9){
+  if(!audioCtx) return;
+  const bSize=audioCtx.sampleRate*dur;
+  const buf=audioCtx.createBuffer(1,bSize,audioCtx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<bSize;i++) d[i]=(Math.random()*2-1);
+  const src=audioCtx.createBufferSource(), g=audioCtx.createGain();
+  src.buffer=buf;
+  g.gain.setValueAtTime(vol,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);
+  src.connect(g); g.connect(masterGain); src.start();
+}
+
+function playBreath(){
+  if(!audioCtx) return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  const f=audioCtx.createBiquadFilter();
+  o.frequency.value=180+Math.random()*40; o.type='sawtooth';
+  f.type='lowpass'; f.frequency.value=280;
+  g.gain.setValueAtTime(0,audioCtx.currentTime);
+  g.gain.linearRampToValueAtTime(.12,audioCtx.currentTime+1.8);
+  g.gain.linearRampToValueAtTime(0,audioCtx.currentTime+4.5);
+  o.connect(f); f.connect(g); g.connect(reverbNode);
+  o.start(); o.stop(audioCtx.currentTime+5);
+}
+
+function playCreak(){
+  if(!audioCtx) return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.frequency.setValueAtTime(800+Math.random()*300, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(200+Math.random()*100, audioCtx.currentTime+0.8);
+  o.type='sawtooth';
+  g.gain.setValueAtTime(0.06,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+0.8);
+  o.connect(g); g.connect(reverbNode); o.start(); o.stop(audioCtx.currentTime+1);
+}
+
+/* ══════════════════════════════════════════
+   WEBGL CANVAS — Fog + particules de poussière
+══════════════════════════════════════════ */
+(function initCanvas(){
+  const canvas = document.getElementById('horror-canvas');
+  const gl = canvas.getContext('webgl', {alpha:true, premultipliedAlpha:false});
+  if(!gl) return;
+
+  function resize(){
+    canvas.width = innerWidth; canvas.height = innerHeight;
+    gl.viewport(0,0,innerWidth,innerHeight);
+  }
+  resize(); window.addEventListener('resize', resize);
+
+  const vs = `
+    attribute vec2 a_pos;
+    void main(){ gl_Position = vec4(a_pos,0,1); }
+  `;
+  const fs = `
+    precision mediump float;
+    uniform float u_time;
+    uniform vec2 u_res;
+    uniform vec2 u_mouse;
+
+    float rand(vec2 n){ return fract(sin(dot(n,vec2(12.9898,4.1414)))*43758.5453); }
+
+    float noise(vec2 p){
+      vec2 i=floor(p), f=fract(p);
+      vec2 u=f*f*(3.-2.*f);
+      return mix(mix(rand(i),rand(i+vec2(1,0)),u.x),
+                 mix(rand(i+vec2(0,1)),rand(i+vec2(1,1)),u.x),u.y);
+    }
+
+    float fbm(vec2 p){
+      float v=0.,a=.5;
+      for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.1; a*=.5; }
+      return v;
+    }
+
+    void main(){
+      vec2 uv = gl_FragCoord.xy / u_res;
+      float t = u_time * 0.08;
+      vec2 muv = u_mouse / u_res;
+
+      // Fog layers
+      float fog1 = fbm(uv * 3.0 + vec2(t * 0.3, t * 0.15));
+      float fog2 = fbm(uv * 2.0 - vec2(t * 0.2, t * 0.08) + 4.0);
+      float fog = fog1 * fog2;
+
+      // Mouse influence — fog thickens near mouse
+      float mdist = 1.0 - length(uv - muv) * 1.2;
+      fog += mdist * 0.06;
+
+      // Blood vein at bottom
+      float blood = smoothstep(0.0, 0.4, 1.0 - uv.y) * fbm(uv * 4.0 + vec2(0, t));
+      blood *= smoothstep(0.0, 0.2, 1.0 - uv.y);
+
+      // Edge darkness
+      float edge = pow(max(abs(uv.x - 0.5)*2.0, abs(uv.y - 0.5)*2.0), 2.5);
+
+      vec3 col = vec3(0.0);
+      col += vec3(0.04, 0.0, 0.0) * blood * 2.0;
+      col += vec3(0.02, 0.01, 0.01) * fog * 0.6;
+      col += vec3(0.01, 0.0, 0.02) * edge * 0.3;
+
+      float a = (fog * 0.25 + blood * 0.3 + edge * 0.15);
+      gl_FragColor = vec4(col, clamp(a, 0.0, 0.7));
+    }
+  `;
+
+  function compileShader(type, src){
+    const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s); return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog); gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog,'a_pos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos,2,gl.FLOAT,false,0,0);
+
+  const uTime = gl.getUniformLocation(prog,'u_time');
+  const uRes  = gl.getUniformLocation(prog,'u_res');
+  const uMouse= gl.getUniformLocation(prog,'u_mouse');
+
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+  let glMx=innerWidth/2, glMy=innerHeight/2;
+  document.addEventListener('mousemove',e=>{glMx=e.clientX;glMy=e.clientY});
+
+  function render(t){
+    gl.uniform1f(uTime, t*0.001);
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform2f(uMouse, glMx, glMy);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+})();
+
+/* ══════════════════════════════════════════
+   INTRO SEQUENCE
+══════════════════════════════════════════ */
+const introLines = [
+  '> Initialisation…',
+  '> Connexion établie.',
+  '> Analyse du visiteur en cours…',
+  '> Anomalie détectée dans le système.',
+  '> Il sait que tu es là.'
+];
+
+let lineIdx=0, charIdx=0;
+const introTextEl  = document.getElementById('intro-text');
+const introMsgEl   = document.getElementById('intro-message');
+const enterBtn     = document.getElementById('enter-btn');
+const holdHint     = document.getElementById('hold-hint');
+const introFace    = document.getElementById('intro-face');
+const introEyes    = document.getElementById('intro-eyes');
+
+function typeIntro(){
+  if(lineIdx >= introLines.length){
+    // Reveal face
+    introFace.style.opacity = '1';
+    introFace.style.transition = 'opacity 3s ease';
+    // Reveal eyes
+    setTimeout(()=>{
+      introEyes.style.opacity = '1';
+      introEyes.style.transition = 'opacity 2s ease';
+      animateEyes();
+    }, 1000);
+    setTimeout(()=>{
+      introMsgEl.style.opacity='1';
+      introMsgEl.style.transition='opacity 1.5s ease';
+    }, 2000);
+    setTimeout(()=>{
+      enterBtn.style.opacity='1';
+      enterBtn.style.transition='opacity 1.5s ease';
+      holdHint.style.opacity='1';
+      holdHint.style.transition='opacity 1.5s ease';
+    }, 3500);
+    return;
+  }
+  const line = introLines[lineIdx];
+  if(charIdx <= line.length){
+    introTextEl.innerHTML = introLines.slice(0,lineIdx).join('<br>') +
+      (lineIdx>0?'<br>':'') + line.slice(0,charIdx) + (charIdx<line.length?'<span style="opacity:.5">_</span>':'');
+    charIdx++;
+    setTimeout(typeIntro, charIdx<=line.length?42:700);
+  } else { lineIdx++; charIdx=0; setTimeout(typeIntro,150); }
+}
+
+/* Eyelid animation */
+function animateEyes(){
+  const ltop = document.getElementById('eye-l-lid-top');
+  const lbot = document.getElementById('eye-l-lid-bot');
+  const rtop = document.getElementById('eye-r-lid-top');
+  const rbot = document.getElementById('eye-r-lid-bot');
+  if(!ltop) return;
+
+  // Phase 1: Lids open slowly (cy goes from ±35 to ±50 = closed, to 0 = open)
+  function openEyes(){
+    let progress = 0;
+    const t = setInterval(()=>{
+      progress = Math.min(1, progress+0.012);
+      const ease = 1-Math.pow(1-progress,3);
+      const lidY = -35 + ease*35; // goes from -35 to 0
+      ltop && ltop.setAttribute('cy', lidY);
+      lbot && lbot.setAttribute('cy', -lidY);
+      rtop && rtop.setAttribute('cy', lidY);
+      rbot && rbot.setAttribute('cy', -lidY);
+      if(progress>=1){ clearInterval(t); scheduleEyeBlink(); }
+    }, 30);
+  }
+
+  // Blink randomly
+  function scheduleEyeBlink(){
+    setTimeout(()=>{
+      if(!document.getElementById('intro').classList.contains('fade-out')){
+        blink(); scheduleEyeBlink();
+      }
+    }, 2000 + Math.random()*4000);
+  }
+
+  function blink(){
+    [ltop,lbot,rtop,rbot].forEach(el=>{
+      if(!el) return;
+      const orig = parseFloat(el.getAttribute('cy'));
+      el.style.transition='cy .08s ease';
+      el.setAttribute('cy', orig>0?38:-38);
+      setTimeout(()=>el.setAttribute('cy', orig), 120);
+    });
+  }
+
+  setTimeout(openEyes, 800);
+}
+
+/* Hold to enter */
+let holdTimer=null;
+enterBtn.addEventListener('mousedown', ()=>{
+  initAudio(); fadeInAmbient(0.05,2.5);
+  enterBtn.classList.add('holding');
+  playTone(55,3,.04,'sine');
+  holdTimer = setTimeout(enterSite, 3000);
+});
+enterBtn.addEventListener('mouseup', cancelHold);
+enterBtn.addEventListener('mouseleave', cancelHold);
+enterBtn.addEventListener('touchstart',e=>{e.preventDefault();initAudio();enterBtn.classList.add('holding');holdTimer=setTimeout(enterSite,3000)});
+enterBtn.addEventListener('touchend', cancelHold);
+
+function cancelHold(){
+  clearTimeout(holdTimer);
+  enterBtn.classList.remove('holding');
+}
+
+function enterSite(){
+  initAudio();
+  fadeInAmbient(0.08, 1.5);
+  playNoise(.08,.3);
+
+  // GSAP intro exit
+  gsap.to('#intro', {opacity:0, duration:2, ease:'power2.in', onComplete:()=>{
+    document.getElementById('intro').style.display='none';
+  }});
+
+  const site = document.getElementById('site');
+  site.removeAttribute('aria-hidden');
+  setTimeout(()=>{
+    site.classList.add('visible');
+    site.classList.add('breathing');
+    initScrollEffects();
+    scheduleGlitch();
+    schedulePresence();
+    scheduleGhostApparition();
+    trackEscape();
+    initHoverEffects();
+    initScrollReveal();
+  }, 1000);
+}
+
+// Beforeunload / escape tracking
+let escapeCount=0;
+function trackEscape(){
+  document.addEventListener('mouseleave', e=>{
+    if(e.clientY<=0){ escapeCount++;
+      if(escapeCount>=2) setTimeout(()=>injectAlert('Tu étais si proche de comprendre…'),200);
+    }
+  });
+}
+
+setTimeout(typeIntro, 600);
+
+/* ══════════════════════════════════════════
+   GSAP SCROLL EFFECTS
+══════════════════════════════════════════ */
+function initScrollEffects(){
+  gsap.registerPlugin(ScrollTrigger);
+
+  // Hero parallax
+  gsap.to('.hero-bg', {
+    yPercent: 25, ease:'none',
+    scrollTrigger:{trigger:'#hero',start:'top top',end:'bottom top',scrub:true}
+  });
+  gsap.to('.hero-silhouette', {
+    yPercent:-15, ease:'none',
+    scrollTrigger:{trigger:'#hero',start:'top top',end:'bottom top',scrub:1}
+  });
+  gsap.to('.hero-title', {
+    yPercent: 10, opacity:0.3, ease:'none',
+    scrollTrigger:{trigger:'#hero',start:'30% top',end:'80% top',scrub:true}
+  });
+
+  // Story cards slide in
+  gsap.utils.toArray('.story-card').forEach((card, i)=>{
+    gsap.fromTo(card, {opacity:0, y:60, rotateX:8}, {
+      opacity:1, y:0, rotateX:0, duration:1.2, ease:'power3.out',
+      scrollTrigger:{trigger:card, start:'top 85%', toggleActions:'play none none reverse'},
+      delay: i*0.15
+    });
+  });
+
+  // Lore cards stagger
+  gsap.utils.toArray('.lore-card').forEach((card,i)=>{
+    gsap.fromTo(card, {opacity:0, x: i%2===0 ? -40 : 40}, {
+      opacity:1, x:0, duration:1, ease:'power2.out',
+      scrollTrigger:{trigger:card, start:'top 88%'},
+      delay:i*0.1
+    });
+  });
+
+  // Blood drip scroll effect on section titles
+  gsap.utils.toArray('.section-title').forEach(el=>{
+    ScrollTrigger.create({
+      trigger:el, start:'top 80%',
+      onEnter: ()=>{
+        gsap.fromTo(el, {color:'#555'},{color:'var(--white)', duration:1.5, ease:'power2.inOut'});
+      }
+    });
+  });
+}
+
+/* ══════════════════════════════════════════
+   SCROLL REVEAL (IntersectionObserver)
+══════════════════════════════════════════ */
+function initScrollReveal(){
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting) e.target.classList.add('revealed');
+    });
+  },{threshold:.15});
+  document.querySelectorAll('.reveal-on-scroll').forEach(el=>io.observe(el));
+}
+
+/* ══════════════════════════════════════════
+   HOVER DISTORTIONS
+══════════════════════════════════════════ */
+function initHoverEffects(){
+  document.querySelectorAll('.story-card').forEach(card=>{
+    card.addEventListener('mouseenter', ()=>{
+      playCreak();
+      // Subtle page-level color shift
+      gsap.to('body',{filter:'saturate(0.85) contrast(1.05)',duration:.4,ease:'power1.in'});
+    });
+    card.addEventListener('mouseleave', ()=>{
+      gsap.to('body',{filter:'saturate(1) contrast(1)',duration:.6,ease:'power1.out'});
+    });
+    // Mouse parallax inside card
+    card.addEventListener('mousemove', e=>{
+      const r = card.getBoundingClientRect();
+      const dx = (e.clientX - r.left - r.width/2) / r.width;
+      const dy = (e.clientY - r.top  - r.height/2) / r.height;
+      gsap.to(card.querySelector('.story-card-bg'), {
+        x: dx*12, y: dy*12, duration:.4, ease:'power1.out'
+      });
+      gsap.to(card.querySelector('.story-card-content'), {
+        x: -dx*4, y: -dy*4, duration:.4, ease:'power1.out'
+      });
+    });
+    card.addEventListener('mouseleave', ()=>{
+      gsap.to(card.querySelector('.story-card-bg'), {x:0,y:0,duration:.6});
+      gsap.to(card.querySelector('.story-card-content'), {x:0,y:0,duration:.6});
+    });
+  });
+
+  // Nav links — subtle glitch on hover
+  document.querySelectorAll('.nav-links a').forEach(a=>{
+    a.addEventListener('mouseenter',()=>{ playTone(440+Math.random()*100,.05,.02); });
+  });
+}
+
+/* ══════════════════════════════════════════
+   GLITCH ENGINE
+══════════════════════════════════════════ */
+function scheduleGlitch(){
+  const delay = 10000 + Math.random()*28000;
+  setTimeout(()=>{ triggerGlitch(); scheduleGlitch(); }, delay);
+}
+
+function triggerGlitch(){
+  const r = Math.random();
+  if(r < 0.3){
+    // Full RGB glitch
+    gsap.to('#site',{
+      duration:.05, x:()=>Math.random()*8-4, y:()=>Math.random()*4-2,
+      filter:'hue-rotate(25deg) saturate(3) contrast(1.5)',
+      repeat:4, yoyo:true, ease:'none',
+      onComplete:()=>gsap.set('#site',{x:0,y:0,filter:'none'})
+    });
+    playNoise(.04,.15);
+  } else if(r < 0.55){
+    injectAlert(randomAlert());
+  } else if(r < 0.75){
+    // Scanline burst
+    const sl = document.getElementById('scanlines');
+    gsap.to(sl,{opacity:.12,duration:.1,yoyo:true,repeat:5,
+      onComplete:()=>gsap.set(sl,{opacity:.03})});
+    playTone(60+Math.random()*30,.3,.04,'sawtooth');
+  } else if(r < 0.88){
+    // Page shake
+    gsap.to('body',{x:()=>Math.random()*6-3,duration:.04,repeat:8,yoyo:true,
+      onComplete:()=>gsap.set('body',{x:0})});
+  } else {
+    // Ghost apparition furtive
+    spawnGhostFace();
+  }
+}
+
+function randomAlert(){
+  return [
+    '> ERREUR : Processus non autorisé détecté',
+    '> AVERTISSEMENT : Activité caméra suspecte',
+    '> [SYSTÈME] : Combien de temps vas-tu rester ?',
+    '> SIGNAL : Quelque chose suit ta connexion',
+    '> [LOG-4471] : Visiteur inconnu — profilage en cours',
+    '> ERREUR_FATALE : Entité détectée sur le réseau',
+    '> ALERTE : Ta présence a été enregistrée',
+  ][Math.floor(Math.random()*7)];
+}
+
+function injectAlert(msg){
+  const el = document.createElement('div');
+  el.className='fake-system-alert'; el.textContent=msg;
+  el.setAttribute('role','alert');
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 4500);
+}
+
+/* ══════════════════════════════════════════
+   GHOST FACE APPARITION (furtif)
+══════════════════════════════════════════ */
+function spawnGhostFace(){
+  const ghost = document.createElement('div');
+  ghost.className='ghost-apparition';
+  const side = Math.random() < .5;
+  ghost.style.left = (10 + Math.random()*80)+'vw';
+  ghost.style.top  = (10 + Math.random()*70)+'vh';
+  ghost.innerHTML = `<svg viewBox="0 0 80 100"><ellipse cx="40" cy="42" rx="32" ry="38" fill="#0a0a0a"/>
+    <ellipse cx="27" cy="35" rx="10" ry="13" fill="#050505"/><ellipse cx="53" cy="35" rx="10" ry="13" fill="#050505"/>
+    <ellipse cx="27" cy="35" rx="4" ry="5" fill="#330000"/><ellipse cx="53" cy="35" rx="4" ry="5" fill="#330000"/>
+    <path d="M25 62 Q40 74 55 62" stroke="#111" stroke-width="2" fill="none"/>
+    <path d="M26 62 Q40 78 54 62" fill="#080808"/></svg>`;
+  document.body.appendChild(ghost);
+  setTimeout(()=>ghost.remove(), 700);
+}
+
+/* ══════════════════════════════════════════
+   PRESENCE
+══════════════════════════════════════════ */
+function schedulePresence(){
+  setTimeout(()=>{
+    const p = document.getElementById('presence');
+    gsap.to(p,{opacity:.2,duration:3,ease:'power1.in'});
+    setTimeout(()=>gsap.to(p,{opacity:0,duration:4,ease:'power1.out'}), 5000);
+    setTimeout(schedulePresence, 35000 + Math.random()*25000);
+  }, 22000 + Math.random()*18000);
+}
+
+/* ══════════════════════════════════════════
+   GHOST APPARITION SCHEDULER
+══════════════════════════════════════════ */
+function scheduleGhostApparition(){
+  setTimeout(()=>{
+    spawnGhostFace();
+    scheduleGhostApparition();
+  }, 25000 + Math.random()*40000);
+}
+
+/* ══════════════════════════════════════════
+   JUMPSCARE
+══════════════════════════════════════════ */
+function triggerJumpscare(){
+  initAudio();
+  const overlay = document.getElementById('jumpscare-overlay');
+  const face = document.getElementById('jumpscare-face');
+
+  playNoise(.18,.95);
+  // Red flash
+  gsap.to(overlay,{opacity:1,duration:.05,ease:'none'});
+  gsap.to(face,{opacity:1,duration:.05,ease:'none'});
+  gsap.to('body',{filter:'brightness(3) saturate(0)',duration:.05});
+
+  setTimeout(()=>{
+    gsap.to(overlay,{opacity:0,duration:.4,ease:'power2.out'});
+    gsap.to(face,{opacity:0,duration:.4});
+    gsap.to('body',{filter:'none',duration:.4});
+  }, 160);
+
+  // Screen shake
+  gsap.to('#site',{x:()=>Math.random()*20-10,duration:.04,repeat:12,yoyo:true,
+    onComplete:()=>gsap.set('#site',{x:0})});
+
+  // Glitch text
+  const sb = document.getElementById('story-body');
+  if(sb){ sb.classList.add('glitching'); setTimeout(()=>sb.classList.remove('glitching'),600); }
+
+  // Breath overlay pulse
+  const bo = document.getElementById('breath-overlay');
+  gsap.to(bo,{opacity:1,duration:.05});
+  setTimeout(()=>gsap.to(bo,{opacity:0,duration:.4}), 180);
+}
+
+/* ══════════════════════════════════════════
+   STORIES DATA
+══════════════════════════════════════════ */
+const stories = {
+  sleep:{
+    title:'Quelque chose dans le Noir',
+    meta:'Paralysie du sommeil · Phénomène réel · Acte I — III',
+    jumpscare:true, breathEffect:true,
+    body:`
+      <p>Tu te réveilles. Mais quelque chose ne va pas.</p>
+      <p>Les yeux ouverts. La pièce est familière — ton plafond, tes rideaux, la lumière froide qui filtre sous la porte. Tout est à sa place. <em>Sauf toi.</em></p>
+      <p>Tu veux te retourner. Impossible.</p>
+      <div class="system-msg">> AVERTISSEMENT : Ce qui suit est basé sur des témoignages réels. La paralysie du sommeil touche 8% de la population.</div>
+      <p>Ton corps est une sculpture. Tes muscles reçoivent les ordres. Ils ne les exécutent pas. C'est une désynchronisation — le cerveau sortit du sommeil paradoxal, le corps encore dans l'atonie musculaire.</p>
+      <p>Tu le sais. Tu l'as lu quelque part. C'est scientifique, raisonnable, explicable.</p>
+      <div class="scene-break">✦ ✦ ✦</div>
+      <div id="sleep-scene" aria-hidden="true"><canvas id="sleep-canvas"></canvas><p class="sleep-scene-text">[ présence simulée — coin 3h du matin ]</p></div>
+      <p>Mais il y a quelque chose dans le coin.</p>
+      <p>Ton regard se déplace — ça, tu peux encore le faire. Et dans l'angle mort, là où le noir est le plus épais, quelque chose <span class="disturbing">change de forme</span>.</p>
+      <p>Pas un mouvement brusque. Une lente résolution, comme si l'obscurité devenait solide. Une silhouette qui n'a pas de visage mais qui en cherche un.</p>
+      <p class="whisper">// 67% des personnes atteintes rapportent une présence. Chercheurs : "hypnagogie". Victimes : autre chose.</p>
+      <p>Elle s'approche. Pas avec des pas — avec de la gravité. Et cette pression sur ta poitrine—</p>
+      <div class="scene-break">✦ ✦ ✦</div>
+      <p>Respire. Essaie de respirer.</p>
+      <p>La chose est au-dessus de toi maintenant. Une <span class="disturbing">présence électrique</span>, une perturbation dans l'air.</p>
+      <p>Et alors, dans ce silence absolu, elle fait quelque chose d'inattendu.</p>
+      <p>Elle attend. Elle attend que tu comprennes.</p>
+      <div class="system-msg">> Fin de la séquence. Tu peux à nouveau bouger.<br>> Elle sera de retour cette nuit. Elle l'est toujours.</div>
+    `
+  },
+  mirror:{
+    title:'Le Reflet',
+    meta:'Psychologie cognitive · Effet Troxler · Acte I — III',
+    jumpscare:false, breathEffect:false,
+    body:`
+      <p>Regarde un miroir assez longtemps.</p>
+      <p>Pas cinq secondes. Pas trente. <em>Longtemps.</em> Trois minutes. Cinq. Seul, dans une pièce mal éclairée, les yeux fixés sur ton propre reflet sans cligner.</p>
+      <p>Quelque chose va se passer.</p>
+      <div class="system-msg">> Phénomène documenté : "Étrange Visage dans le Miroir" — Dr Caputo, 2010. 66 sujets testés. 66 ont vu quelque chose d'autre.</div>
+      <p>Au début : ton visage. Familier, précis, le tien. La petite cicatrice. Les cernes. Les détails que tu connais par cœur mais ne regardes jamais vraiment.</p>
+      <p>Ensuite, lentement : le flou. L'effet Troxler entre en jeu. Ton visage commence à <span class="disturbing">se dissoudre</span>.</p>
+      <div class="scene-break">✦ ✦ ✦</div>
+      <p>Puis les sujets du Dr Caputo ont commencé à voir des monstres.</p>
+      <p>Pas des visages déformés. Pas une simple hallucination. Des <em>entités</em>. Des visages qui n'étaient pas les leurs. Des traits d'animaux. D'ancêtres. De quelque chose qui n'a pas de nom.</p>
+      <p class="whisper">// La majorité des participants a dû interrompre l'expérience. Effets persistants : 24 à 48 heures.</p>
+      <p>Ce n'est pas surnaturel. C'est neurologique. Le cerveau, privé d'input changeant, fabrique depuis le fond de lui-même.</p>
+      <p>La question qui reste : <span class="disturbing">Qu'est-ce qu'il a trouvé ?</span></p>
+      <div class="scene-break">✦ ✦ ✦</div>
+      <p>Cette nuit, avant de dormir, tu vas penser à ce miroir. Et tu te demanderas si le reflet qui te regardait… c'était vraiment toi.</p>
+      <div class="system-msg">> Fin de lecture.<br>> Ne regarde pas dans le miroir maintenant.<br>> Ou alors — regarde.</div>
+    `
+  },
+  signal:{
+    title:'Fréquence 47',
+    meta:'ARG · Signal radio · Phénomène réel · Acte I — III',
+    jumpscare:false, breathEffect:false,
+    body:`
+      <p>Le 2 janvier 1982, une station radio connue sous le nom de "The Buzzer" a émis son premier signal.</p>
+      <p>Depuis plus de quarante ans, sans interruption, elle diffuse un bourdonnement monotone. De temps en temps, une voix ânonne des codes. Personne ne sait pourquoi. Personne n'a jamais revendiqué la station.</p>
+      <div class="system-msg">> Fréquence : 4625 kHz. Code UVB-76. Statut : ACTIF.<br>> Dernière transmission vocale : il y a 3 jours.</div>
+      <p>Ce sont des stations-fantômes. Elles fonctionnent en ce moment, pendant que tu lis ces lignes.</p>
+      <div class="scene-break">✦ ✦ ✦</div>
+      <p>En 2019, un amateur radio en Roumanie a capté une fréquence non répertoriée : 47.0033 MHz. Pas dans le registre. Et pourtant — <span class="disturbing">quelqu'un émettait</span>.</p>
+      <p class="whisper">// Le fichier audio a été supprimé des forums dans les 72 heures. L'utilisateur n'a plus jamais posté.</p>
+      <p>La transmission durait 8 minutes. À la minute 3:47, quelque chose changeait. Pas des mots. Pas des chiffres. Quelque chose que les logiciels de décodage ne reconnaissaient pas.</p>
+      <p>Ceux qui ont écouté avec un casque ont dit la même chose : le signal <em>les écoutait en retour.</em></p>
+      <div class="scene-break">✦ ✦ ✦</div>
+      <p>Il a trouvé une page. Juste une page blanche avec deux lignes :</p>
+      <div class="system-msg">> Tu as trouvé ce que tu ne cherchais pas.<br>> 47.0033. Minuit. Écoute.</div>
+      <p>Personne ne sait ce qu'il a entendu. Il n'a jamais répondu.</p>
+      <p>La fréquence 47 émet encore. Chaque nuit. Elle attendait juste que quelqu'un soit assez curieux.</p>
+    `
+  },
+
+  bulb: {
+    title: 'Pourquoi une ampoule clignote sans raison ?',
+    meta: 'Électricité · Physique · Phénomène documenté · Acte I — III',
+    jumpscare: true, breathEffect: false,
+    body: `
+      <p>La réponse officielle est simple. Une variation de tension dans le réseau électrique — souvent inférieure à 5% — peut provoquer un scintillement. Les ampoules LED sont particulièrement sensibles. Un filament vieillissant, un circuit mal connecté, la dilatation thermique du métal.</p>
+      <p>C'est banal. C'est explicable. Il n'y a rien à craindre.</p>
+      <div class="system-msg">> Phénomène classé : normal. Aucune intervention requise.<br>> Fréquence documentée : 74% des foyers signalent ce phénomène.</div>
+      <div class="scene-break">✦ ✦ ✦</div>
+      <p>Il est 2h17. Tu te lèves pour boire de l'eau — c'est une habitude depuis des semaines. L'ampoule de la cuisine clignote une fois. Une seule. Tu t'arrêtes.</p>
+      <p>Elle clignote encore. Deux fois. Rythme régulier. Presque <em class="disturbing">intentionnel.</em></p>
+      <p>Tu regards le plafond. La prise. Le câble. Tout semble normal. Tu reprends ta marche vers l'évier.</p>
+      <p>Derrière toi — tu ne regardes plus — elle clignote <span class="disturbing">trois fois.</span></p>
+      <p class="whisper">// Une variation de tension ne produit pas de rythme. Une variation de tension n'attend pas que tu te retournes.</p>
+      <div class="scene-break">✦ ✦ ✦</div>
+      <p>Le lendemain soir, tu restes dans la cuisine. Tu regardes l'ampoule. Rien. Une heure. Deux heures. Rien.</p>
+      <p>Tu te lèves pour partir. Tu as le dos tourné depuis deux secondes.</p>
+      <p>Elle clignote. Une fois. Pause. Deux fois. Pause. Trois fois.</p>
+      <p class="disturbing">Quelque chose compte. Et ce n'est pas l'électricité.</p>
+      <div class="system-msg">> Conseil : remplacer l'ampoule.<br>> Note interne : le remplacement ne changera rien.</div>
+    `
+  },
+  wake: {
+    title: 'Pourquoi je me réveille toujours à la même heure ?',
+    meta: 'Chronobiologie · Sommeil · Phénomène documenté · Acte I — III',
+    jumpscare: true, breathEffect: true,
+    body: `
+      <p>Ton cerveau possède une horloge biologique interne — le rythme circadien — régulée par la lumière et les habitudes. Il est capable d'anticiper un réveil en augmentant progressivement le cortisol une heure avant. Des phases de sommeil léger, naturellement cycliques, coïncident avec les mêmes heures chaque nuit.</p>
+      <p>C'est de la physiologie. Rien d'autre.</p>
+      <div class="system-msg">> Heure enregistrée : 03h03<br>> Classification : réveil spontané — rythme circadien normal</div>
+      <div class="scene-break">✦ ✦ ✦</div>
+      <p>3h03. Toujours 3h03. Depuis des semaines.</p>
+      <p>Tu ouvres les yeux. La chambre est dans un noir parfait. Ton cœur bat déjà trop vite — comme si quelque chose t'avait réveillé <span class="disturbing">brusquement,</span> pas progressivement. Pas une horloge biologique. Un signal.</p>
+      <p>Tu ne bouges pas. L'air est différent. Plus lourd. La respiration que tu entends — tu t'assures que c'est la tienne. Tu comptes. Une inspiration. Deux. Trois.</p>
+      <p>Il y en a une quatrième.</p>
+      <p class="disturbing">Ce n'est pas toi.</p>
+      <p class="whisper">// 3h03 — l'heure des morts dans de nombreuses traditions. Ce n'est pas une coïncidence. C'est une invitation.</p>
+      <div class="scene-break">✦ ✦ ✦</div>
+      <p>Tu restes immobile pendant ce qui semble être une éternité. La respiration ne s'arrête pas.</p>
+      <p>Elle est calme. Patiente. Elle attend quelque chose. Elle attend peut-être que tu <em>bouges.</em></p>
+      <p>La prochaine nuit, tu te réveilles à 3h03.</p>
+      <p>Et cette fois, la respiration est plus proche.</p>
+      <div class="system-msg">> Elle ne dort pas.<br>> Elle ne dort jamais.</div>
+    `
+  },
+  watched: {
+    title: "Pourquoi j'ai l'impression d'être observé ?",
+    meta: "Neurologie · Perception · Phénomène documenté · Acte I — III",
+    jumpscare: false, breathEffect: true,
+    body: `
+      <p>Le cerveau humain possède un circuit dédié à la détection des regards — une région du sillon temporal supérieur hyper-réactive, héritée de millions d'années d'évolution. Il détecte les patterns "yeux" même dans le bruit visuel, et génère une réponse de vigilance avant même que la conscience traite l'information. Ce mécanisme peut se déclencher à tort.</p>
+      <p>C'est neurologique. C'est une erreur de traitement. Ça arrive à tout le monde.</p>
+      <div class="system-msg">> Diagnostic : hypervigilance temporaire<br>> Recommandation : réduire le stress</div>
+      <div class="scene-break">✦ ✦ ✦</div>
+      <p>Tu lis. Tu travailles. Tu regardes ton téléphone. Et soudain — sans raison, sans bruit — tu lèves les yeux.</p>
+      <p>Vers la fenêtre. Vers le couloir. Vers le coin de la pièce que tu n'éclaires jamais.</p>
+      <p>Rien. Bien sûr que rien. Ton cerveau, juste.</p>
+      <p>Mais quelque chose en toi note l'heure. Note la direction. Note que c'est la troisième fois en une heure. Que c'est toujours le même coin. Que depuis deux semaines, c'est toujours <span class="disturbing">à droite du placard.</span></p>
+      <p class="whisper">// Ton cerveau ne génère pas d'alertes aléatoires. Il reconnaît quelque chose. Il ne comprend pas encore quoi.</p>
+      <div class="scene-break">✦ ✦ ✦</div>
+      <p>Ce soir, tu décides de ne pas lever les yeux. De résister. De prouver que c'est dans ta tête.</p>
+      <p>Dix minutes. Tu lis. Tu ne regardes pas.</p>
+      <p>Vingt minutes. Tu commences à avoir chaud. Ton cœur s'accélère.</p>
+      <p>Trente minutes. Tu ne peux plus. Tu lèves les yeux vers le coin.</p>
+      <p>Il y a quelque chose là. Pas une forme précise. Pas assez de lumière pour voir. Mais <span class="disturbing">quelque chose qui n'était pas là avant.</span></p>
+      <p>Tu rallumes toute la lumière. Rien.</p>
+      <p>Mais tu sais, maintenant. Ton cerveau ne se trompait pas.</p>
+      <div class="system-msg">> Elle était là.<br>> Elle est toujours là.<br>> Elle attend que tu éteignes la lumière.</div>
+    `
+  },
+};
+
+/* ══════════════════════════════════════════
+   SLEEP PARALYSIS SCENE (Canvas 2D)
+══════════════════════════════════════════ */
+function initSleepScene(){
+  const canvas = document.getElementById('sleep-canvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const container = document.getElementById('sleep-scene');
+  canvas.width  = container.offsetWidth;
+  canvas.height = container.offsetHeight;
+
+  let figureX = canvas.width * 1.08; // start off-screen right
+  let figureProgress = 0; // 0 = far, 1 = close
+  let t = 0;
+
+  function draw(){
+    t += 0.018;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Room bg
+    const bg = ctx.createRadialGradient(canvas.width/2,canvas.height/2,10,canvas.width/2,canvas.height/2,canvas.width*.7);
+    bg.addColorStop(0,'#0a0505');
+    bg.addColorStop(1,'#000');
+    ctx.fillStyle = bg; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // Floor line
+    ctx.strokeStyle='rgba(50,30,30,0.3)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,canvas.height*.75); ctx.lineTo(canvas.width,canvas.height*.75);
+    ctx.stroke();
+
+    // Bedroom elements — window
+    ctx.fillStyle='rgba(15,20,30,0.8)';
+    ctx.fillRect(30,20,80,60);
+    ctx.strokeStyle='rgba(40,40,60,0.4)'; ctx.lineWidth=1;
+    ctx.strokeRect(30,20,80,60);
+    // Moon glow in window
+    const moonGlow=ctx.createRadialGradient(70,50,0,70,50,30);
+    moonGlow.addColorStop(0,'rgba(100,120,150,0.08)');
+    moonGlow.addColorStop(1,'transparent');
+    ctx.fillStyle=moonGlow; ctx.fillRect(30,20,80,60);
+
+    // Silhouette approaching — creep from right
+    figureProgress = Math.min(1, figureProgress + 0.0008);
+    const ease = figureProgress * figureProgress * (3 - 2*figureProgress); // smoothstep
+    const fx = canvas.width * (1.05 - ease * 0.55);
+    const fh = canvas.height * (0.18 + ease * 0.55); // grows as it approaches
+    const fw = fh * 0.35;
+    const fy = canvas.height * 0.75 - fh;
+    const opacity = ease * 0.7;
+
+    // Shadow on floor
+    ctx.save();
+    ctx.globalAlpha = opacity * 0.4;
+    ctx.fillStyle='rgba(0,0,0,0.8)';
+    ctx.beginPath();
+    ctx.ellipse(fx, canvas.height*.75, fw*.8, 8+ease*12, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // Figure body
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    const grad = ctx.createRadialGradient(fx,fy+fh*.3,0,fx,fy+fh*.5,fw);
+    grad.addColorStop(0,'rgba(8,4,4,0.95)');
+    grad.addColorStop(1,'rgba(2,0,0,0)');
+
+    // Head
+    ctx.fillStyle=`rgba(5,2,2,${opacity})`;
+    ctx.beginPath();
+    ctx.ellipse(fx, fy+fh*.08, fw*.28 + Math.sin(t*1.5)*2, fw*.32 + Math.cos(t)*2, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Body
+    ctx.beginPath();
+    ctx.moveTo(fx-fw*.4, fy+fh*.9);
+    ctx.quadraticCurveTo(fx-fw*.5+Math.sin(t)*3, fy+fh*.5, fx-fw*.2, fy+fh*.18);
+    ctx.quadraticCurveTo(fx, fy+fh*.12, fx+fw*.2, fy+fh*.18);
+    ctx.quadraticCurveTo(fx+fw*.5+Math.sin(t+1)*3, fy+fh*.5, fx+fw*.4, fy+fh*.9);
+    ctx.closePath();
+    ctx.fillStyle=`rgba(4,2,2,${opacity})`;
+    ctx.fill();
+
+    // Arms (reaching)
+    ctx.strokeStyle=`rgba(6,2,2,${opacity})`;
+    ctx.lineWidth = fw*.18;
+    ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(fx-fw*.35, fy+fh*.35);
+    ctx.quadraticCurveTo(fx-fw*.8+Math.sin(t*.7)*5, fy+fh*.6, fx-fw*(0.6+ease*.4), fy+fh*(0.5+ease*.3));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(fx+fw*.35, fy+fh*.35);
+    ctx.quadraticCurveTo(fx+fw*.8+Math.sin(t*.7+1)*5, fy+fh*.6, fx+fw*(0.6+ease*.4), fy+fh*(0.5+ease*.3));
+    ctx.stroke();
+
+    // Eyes (appear when close enough)
+    if(ease > 0.4){
+      const eyeOpacity = (ease - 0.4) / 0.6;
+      const eyeFlicker = Math.random() > .97 ? 0 : eyeOpacity;
+      ctx.fillStyle=`rgba(200,0,0,${eyeFlicker*.5})`;
+      ctx.beginPath(); ctx.ellipse(fx-fw*.08, fy+fh*.09, 3+ease*2, 4+ease*2, 0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(fx+fw*.08, fy+fh*.09, 3+ease*2, 4+ease*2, 0,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+
+    // Atmospheric fog particles
+    for(let i=0;i<3;i++){
+      const px = (Math.sin(t*.3+i*2.1)*canvas.width*.5)+canvas.width/2;
+      const py = canvas.height*.3 + Math.cos(t*.2+i*1.4)*canvas.height*.3;
+      const pg = ctx.createRadialGradient(px,py,0,px,py,40+i*20);
+      pg.addColorStop(0,'rgba(20,10,10,0.06)');
+      pg.addColorStop(1,'transparent');
+      ctx.fillStyle=pg;
+      ctx.beginPath(); ctx.ellipse(px,py,50+i*30,30+i*15,0,0,Math.PI*2); ctx.fill();
+    }
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+/* ══════════════════════════════════════════
+   STORY MODAL
+══════════════════════════════════════════ */
+var storyJsTimer=null, storyBreathInterval=null;
+
+
+/* ══ VIDEO SOURCES — indexed by story ID ══ */
+
+// requestIdleCallback polyfill
+if (!window.requestIdleCallback) {
+  window.requestIdleCallback = function(cb, opts) {
+    return setTimeout(function() { cb({didTimeout:false,timeRemaining:function(){return 50;}}); }, 
+      opts && opts.timeout ? Math.min(opts.timeout, 50) : 50);
+  };
+}
+
+const STORY_VIDEOS_B64 = {};
+
+// Créer les Blob URLs au chargement (lazy, hors thread principal)
+const STORY_VIDEO_URLS = {};
+function getVideoUrl(storyId) {
+  if (STORY_VIDEO_URLS[storyId]) return Promise.resolve(STORY_VIDEO_URLS[storyId]);
+  const b64 = STORY_VIDEOS_B64[storyId];
+  if (!b64) return Promise.resolve(null);
+  return new Promise(resolve => {
+    // Décoder en Blob pour éviter de bloquer le thread
+    requestIdleCallback(() => {
+      try {
+        const binary = atob(b64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], {type: 'video/mp4'});
+        STORY_VIDEO_URLS[storyId] = URL.createObjectURL(blob);
+        resolve(STORY_VIDEO_URLS[storyId]);
+      } catch(e) { resolve(null); }
+    }, {timeout: 500});
+  });
+}
+
+/* ══ STORY MODAL — video backdrop + scroll sync ══ */
+var _storyScrollRAF = null; // storyJsTimer/storyBreathInterval declared above
+
+/* ══════════════════════════════════════════
+   STORY MODAL — ouverture instantanée
+   Vidéo en fond plein écran, scroll sync
+══════════════════════════════════════════ */
+
+/* ══ STORY MODAL — ouverture, vidéo, scroll sync ══ */
+function openStory(id) {
+  initAudio();
+  var s = stories[id];
+  if (!s) return;
+
+  /* Contenu */
+  document.getElementById('modal-story-label').textContent = 'SURNARHORREUR — ' + s.title.toUpperCase();
+  document.getElementById('story-content').innerHTML =
+    '<h1 class="story-content-title">' + s.title + '</h1>' +
+    '<p class="story-content-meta">' + s.meta + '</p>' +
+    '<div class="story-body" id="story-body">' + s.body + '</div>';
+
+  /* Ouvrir modal — BLOQUER SCROLL PAGE */
+  var modal = document.getElementById('story-modal');
+  modal.classList.add('open');
+  modal.scrollTop = 0;
+  document.body.classList.add('story-open');
+  document.documentElement.classList.add('story-open-html');
+
+  /* Progress bar */
+  var fill = document.getElementById('story-read-progress-fill');
+  if (fill) fill.style.width = '0%';
+
+  /* Animer paragraphes */
+  setTimeout(function() {
+    var paras = document.querySelectorAll('.story-body > *');
+    paras.forEach(function(p, i) {
+      p.style.opacity = '0';
+      p.style.transform = 'translateY(12px)';
+      p.style.transition = 'opacity 0.5s ease ' + (i*0.1) + 's, transform 0.5s ease ' + (i*0.1) + 's';
+      setTimeout(function() { p.style.opacity='1'; p.style.transform='translateY(0)'; }, 30);
+    });
+  }, 80);
+
+  /* Audio */
+  fadeInAmbient(0.1, 2);
+  playBreath();
+  if (s.breathEffect) storyBreathInterval = setInterval(function(){ playBreath(); }, 9000);
+  if (s.jumpscare) storyJsTimer = setTimeout(triggerJumpscare, 28000 + Math.random()*18000);
+
+  /* ═══ VIDÉO PLEIN ÉCRAN ═══ */
+  var backdrop = document.getElementById('story-video-backdrop');
+  var vid = document.getElementById('story-backdrop-video');
+  if (backdrop && vid) {
+    backdrop.classList.remove('active');
+    backdrop.style.opacity = '0';
+    vid.pause(); vid.src = '';
+
+    getVideoUrl(id).then(function(url) {
+      if (!url) return;
+      vid.src = url;
+      vid.muted = true;
+      vid.load();
+      vid.play().catch(function(){});
+      /* Fondu progressif */
+      var op = 0, t = setInterval(function() {
+        op = Math.min(op + 0.04, 1);
+        backdrop.style.opacity = op.toFixed(2);
+        if (op >= 1) { backdrop.classList.add('active'); clearInterval(t); }
+      }, 60);
+    });
+  }
+
+  /* ═══ SCROLL SYNC ═══ */
+  if (modal._scrollOff) { modal._scrollOff(); modal._scrollOff = null; }
+  function onScroll() {
+    var max = modal.scrollHeight - modal.clientHeight;
+    if (max <= 0) return;
+    var p = Math.min(1, modal.scrollTop / max);
+    if (fill) fill.style.width = (p*100) + '%';
+    if (!vid || !vid.src || vid.readyState < 1) return;
+
+    /* Sync position */
+    if (vid.duration > 0) {
+      var diff = (p * vid.duration) - vid.currentTime;
+      if (Math.abs(diff) > 0.25) vid.currentTime += diff * 0.14;
+    }
+    /* Vitesse selon progression — tension qui monte */
+    try { vid.playbackRate = p<0.15?0.5 : p<0.5?0.85 : p<0.8?1.2 : 1.8; } catch(e){}
+    /* Parallax */
+    vid.style.transform = 'scale(1.12) translateY(' + (p*6) + '%)';
+    /* Luminosité dynamique — plus claire au coeur de l'histoire */
+    var br = p<0.4 ? (0.65+p*0.45) : p<0.7 ? 0.85 : (0.85-(p-0.7)*0.5);
+    vid.style.filter = 'brightness(' + br.toFixed(2) + ') contrast(1.05)';
+  }
+  modal.addEventListener('scroll', onScroll, {passive:true});
+  modal._scrollOff = function(){ modal.removeEventListener('scroll', onScroll); };
+
+  /* Présence */
+  setTimeout(function() {
+    var pr = document.getElementById('presence');
+    if (pr) { pr.style.transition='opacity 4s ease'; pr.style.opacity='0.22'; }
+  }, 18000);
+}
+
+function closeStory() {
+  clearTimeout(storyJsTimer);
+  clearInterval(storyBreathInterval);
+
+  var modal = document.getElementById('story-modal');
+  var vid   = document.getElementById('story-backdrop-video');
+  var bd    = document.getElementById('story-video-backdrop');
+  var fill  = document.getElementById('story-read-progress-fill');
+
+  if (modal._scrollOff) { modal._scrollOff(); modal._scrollOff = null; }
+
+  if (bd) { bd.style.opacity='0'; bd.classList.remove('active'); }
+  if (vid) { setTimeout(function(){ vid.pause(); vid.src=''; }, 450); vid.muted=true; }
+  if (fill) fill.style.width='0%';
+
+  var sndBtn = document.getElementById('story-sound-btn');
+  if (sndBtn) { sndBtn.textContent='🔇 Son'; sndBtn.classList.remove('on'); }
+
+  /* Fermer avec fondu + DÉBLOQUER SCROLL */
+  modal.style.opacity='0';
+  modal.style.transition='opacity 0.35s ease';
+  setTimeout(function(){
+    modal.classList.remove('open');
+    modal.style.opacity=''; modal.style.transition='';
+    document.body.classList.remove('story-open');
+    document.documentElement.classList.remove('story-open-html');
+    document.getElementById('story-content').innerHTML='';
+  }, 360);
+
+  var pr = document.getElementById('presence');
+  if (pr) { pr.style.transition='opacity 2s'; pr.style.opacity='0'; }
+  fadeInAmbient(0.05, 2);
+}
+
+function toggleBackdropSound() {
+  var vid = document.getElementById('story-backdrop-video');
+  var btn = document.getElementById('story-sound-btn');
+  if (!vid) return;
+  vid.muted = !vid.muted;
+  if (btn) { btn.textContent=vid.muted?'🔇 Son':'🔊 Son'; btn.classList.toggle('on',!vid.muted); }
+  if (!vid.muted) initAudio();
+}
+
+
+function toggleBackdropSound() {
+  var vid = document.getElementById('story-backdrop-video');
+  var btn = document.getElementById('story-sound-btn');
+  if (!vid) return;
+  vid.muted = !vid.muted;
+  if (btn) {
+    btn.textContent = vid.muted ? '🔇 Son' : '🔊 Son';
+    btn.classList.toggle('on', !vid.muted);
+  }
+  if (!vid.muted) initAudio();
+}
+
+
+function toggleBackdropSound() {
+  var vid = document.getElementById('story-backdrop-video');
+  var btn = document.getElementById('story-sound-btn');
+  if (!vid) return;
+  vid.muted = !vid.muted;
+  btn.textContent = vid.muted ? '🔇 Son' : '🔊 Son';
+  btn.classList.toggle('on', !vid.muted);
+  if (!vid.muted) initAudio();
+}
+
+
+function toggleBackdropSound() {
+  var vid = document.getElementById('story-backdrop-video');
+  var btn = document.getElementById('story-sound-btn');
+  if (!vid) return;
+  if (vid.muted) { vid.muted = false; btn.textContent = '🔊 Son'; btn.classList.add('on'); initAudio(); }
+  else { vid.muted = true; btn.textContent = '🔇 Son'; btn.classList.remove('on'); }
+}
+
+
+function toggleBackdropSound() {
+  const vid = document.getElementById('story-backdrop-video');
+  const btn = document.getElementById('story-sound-btn');
+  if (!vid) return;
+  if (vid.muted) {
+    vid.muted = false; btn.textContent = '🔊 Son'; btn.classList.add('on');
+    initAudio();
+  } else {
+    vid.muted = true; btn.textContent = '🔇 Son'; btn.classList.remove('on');
+  }
+}
+
+
+/* ══════════════════════════════════════════
+   QUIZ
+══════════════════════════════════════════ */
+const quizData=[
+  {q:"La nuit, tu entends un bruit dans la pièce d'à côté. Que fais-tu ?",opts:[
+    {t:"Tu ignores. C'est probablement rien.",v:0},{t:"Tu écoutes, tendu, sans bouger.",v:1},
+    {t:"Tu vas vérifier. Il faut savoir.",v:2},{t:"Tu te caches et tu attends.",v:3}]},
+  {q:"Dans tes cauchemars, tu es plutôt…",opts:[
+    {t:"Chassé par quelque chose d'invisible.",v:0},{t:"Piégé dans un endroit familier mais déformé.",v:1},
+    {t:"Incapable de bouger, de crier, d'agir.",v:2},{t:"Observateur d'une scène que tu ne peux pas arrêter.",v:3}]},
+  {q:"Ce qui te terrifie le plus, c'est…",opts:[
+    {t:"Ce que tu pourrais voir.",v:0},{t:"Ce que tu ne verras jamais vraiment.",v:1},
+    {t:"Ne pas pouvoir fuir.",v:2},{t:"Que personne ne te croie.",v:3}]}
+];
+const profiles=[
+  {name:"L'Incrédule",desc:"Tu rationalises. Tu expliques. Mais une petite voix au fond de toi sait que certaines choses résistent à l'explication."},
+  {name:"Le Vigilant",desc:"Tu sens les atmosphères. Tu perçois ce que les autres ignorent. Cette sensibilité est un don — et une malédiction."},
+  {name:"Le Paralysé",desc:"Tu ressens tout mais ne peux rien faire. L'horreur la plus profonde est l'impuissance. Et tu la connais bien."},
+  {name:"Le Témoin",desc:"Tu observes. Tu analyses. Tu collectes les indices. Tu es celui qui comprend trop tard — ou trop tôt."}
+];
+let qIdx=0, scores=[0,0,0,0];
+
+function quizAnswer(btn){
+  initAudio();
+  playTone(220,.2,.05);
+  document.querySelectorAll('.quiz-opt').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  scores[parseInt(btn.dataset.val)]++;
+  gsap.fromTo(btn,{x:0},{x:6,duration:.05,yoyo:true,repeat:5});
+  setTimeout(()=>{
+    qIdx++;
+    if(qIdx<quizData.length){
+      const d=quizData[qIdx];
+      document.getElementById('quiz-progress').textContent=`QUESTION ${qIdx+1} / ${quizData.length}`;
+      gsap.to('#quiz-inner',{opacity:0,duration:.3,onComplete:()=>{
+        document.getElementById('quiz-q').textContent=d.q;
+        const letters=['A','B','C','D'];
+        document.getElementById('quiz-opts').innerHTML=d.opts.map((o,i)=>
+          `<button class="quiz-opt" data-letter="${letters[i]}" data-val="${o.v}" onclick="quizAnswer(this)">${o.t}</button>`).join('');
+        gsap.to('#quiz-inner',{opacity:1,duration:.4});
+      }});
+    } else showQuizResult();
+  }, 600);
+}
+
+function showQuizResult(){
+  const maxScore=Math.max(...scores);
+  const p=profiles[scores.indexOf(maxScore)];
+  document.getElementById('result-profile').textContent=p.name;
+  document.getElementById('result-desc').textContent=p.desc;
+  gsap.to('#quiz-inner',{opacity:.3,duration:.5});
+  document.getElementById('quiz-inner').style.pointerEvents='none';
+  const res=document.getElementById('quiz-result');
+  res.classList.add('show');
+  gsap.fromTo(res,{opacity:0,y:10},{opacity:1,y:0,duration:.8});
+  playTone(110,2,.1,'sawtooth');
+  setTimeout(()=>triggerGlitch(), 500);
+}
+
+/* ══════════════════════════════════════════
+   NIGHT MODE
+══════════════════════════════════════════ */
+let nightMode=false;
+function toggleNight(){
+  initAudio();
+  nightMode=!nightMode;
+  document.body.classList.toggle('night-mode',nightMode);
+  document.getElementById('night-btn').textContent=nightMode?'☀ Mode normal':'🕯 Nuit totale';
+  document.body.style.setProperty('--mx',mx+'px');
+  document.body.style.setProperty('--my',my+'px');
+  if(nightMode){ fadeInAmbient(.15,2); playTone(55,2,.08,'sine'); }
+  else fadeInAmbient(.06,2);
+}
+
+/* ══════════════════════════════════════════
+   SCROLL EVENTS
+══════════════════════════════════════════ */
+window.addEventListener('scroll',()=>{
+  if(escapeCount>=2) return;
+  const s=window.scrollY, max=document.body.scrollHeight-innerHeight;
+  const pct=s/max;
+  // Increase noise intensity with scroll depth
+  if(noiseGain&&audioCtx) noiseGain.gain.value = Math.min(0.15, 0.04+pct*0.08);
+}, {passive:true});
+
+/* ══════════════════════════════════════════
+   KONAMI + EASTER EGGS
+══════════════════════════════════════════ */
+const konami=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+let kIdx=0;
+document.addEventListener('keydown',e=>{
+  if(e.key===konami[kIdx]){ kIdx++;
+    if(kIdx===konami.length){
+      kIdx=0; initAudio();
+      injectAlert('> MODE ARCHIVE DÉVERROUILLÉ — Bienvenue dans le Fond.');
+      playTone(55,3,.14,'sawtooth');
+      gsap.to('body',{filter:'invert(1) hue-rotate(180deg)',duration:2,yoyo:true,repeat:1});
+    }
+  } else kIdx=0;
+  if(e.key==='Escape') closeStory();
+});
+
+/* Immobilité 60s */
+let immobileTimer=null;
+function resetImmobile(){
+  clearTimeout(immobileTimer);
+  immobileTimer=setTimeout(()=>injectAlert('> Pourquoi tu ne bouges plus ? Elle aussi attend.'), 60000);
+}
+['mousemove','keydown','scroll'].forEach(ev=>document.addEventListener(ev,resetImmobile,{passive:true}));
+resetImmobile();
+
+/* 3h03 easter egg */
+const now=new Date();
+if(now.getHours()===3&&now.getMinutes()===3){
+  setTimeout(()=>{
+    initAudio();
+    injectAlert('> 03h03. Elle est là. Ferme les yeux.');
+    playTone(33,5,.12,'sine');
+  }, 3000);
+}
+
+/* ══════════════════════════════════════════
+   PHÉNOMÈNES — IntersectionObserver
+══════════════════════════════════════════ */
+const phenoObserver = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('in-view');
+      if(typeof playCreak==='function') setTimeout(playCreak, 400);
+    }
+  });
+},{threshold:.1});
+document.querySelectorAll('.pheno-section').forEach(s=>phenoObserver.observe(s));
+
+/* ══════════════════════════════════════════
+   VIDEO MANAGEMENT
+══════════════════════════════════════════ */
+function toggleVideoSound(videoId, btn){
+  const vid = document.getElementById(videoId);
+  if(!vid) return;
+  if(vid.muted){
+    vid.muted=false; btn.textContent='🔊 Son'; btn.classList.add('active'); initAudio();
+  } else {
+    vid.muted=true; btn.textContent='🔇 Son'; btn.classList.remove('active');
+  }
+}
+// Video error → show placeholder
+document.querySelectorAll('.pheno-video').forEach(vid=>{
+  const phId='vph-'+vid.id.replace('vid-','');
+  const ph=document.getElementById(phId);
+  vid.addEventListener('loadeddata',()=>{ if(ph){ph.style.opacity='0';ph.style.pointerEvents='none';} });
+  vid.addEventListener('error',()=>{ if(ph) ph.style.display='flex'; });
+  // Force error check on load
+  if(vid.readyState===0 && ph) ph.style.display='flex';
+});
+
+/* ══════════════════════════════════════════
+   PHÉNOMÈNES — Canvas backgrounds 2D
+══════════════════════════════════════════ */
+[
+  {id:'canvas-bulb',    r:255, g:200, b:60,  spd:1.4},
+  {id:'canvas-wake',    r:30,  g:50,  b:120, spd:0.6},
+  {id:'canvas-watched', r:180, g:0,   b:0,   spd:0.9},
+  {id:'canvas-shadow',  r:60,  g:0,   b:120, spd:0.5},
+].forEach(cfg=>{
+  const canvas=document.getElementById(cfg.id);
+  if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  let t=Math.random()*100, running=false;
+
+  function resize(){
+    const p=canvas.closest('.pheno-section');
+    if(!p) return;
+    canvas.width=p.offsetWidth; canvas.height=p.offsetHeight;
+  }
+  resize();
+  window.addEventListener('resize',resize,{passive:true});
+
+  function draw(){
+    t+=0.007*cfg.spd;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const w=canvas.width, h=canvas.height;
+    for(let i=0;i<3;i++){
+      const bx=w*(.2+i*.3)+Math.sin(t*.7+i*2.1)*w*.1;
+      const by=h*(.3+i*.2)+Math.cos(t*.5+i*1.4)*h*.12;
+      const br=Math.min(w,h)*(.3+Math.sin(t*.3+i)*.07);
+      const a=0.035+Math.sin(t*.4+i)*.015;
+      const g=ctx.createRadialGradient(bx,by,0,bx,by,br);
+      g.addColorStop(0,`rgba(${cfg.r},${cfg.g},${cfg.b},${a})`);
+      g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=g;
+      ctx.beginPath(); ctx.ellipse(bx,by,br,br*.55,t*.08+i,0,Math.PI*2); ctx.fill();
+    }
+    // Occasional glitch line
+    if(Math.random()<.025){
+      const ly=Math.random()*h;
+      ctx.fillStyle=`rgba(${cfg.r},${cfg.g},${cfg.b},0.05)`;
+      ctx.fillRect(0,ly,w,1+Math.random()*2);
+    }
+    if(running) requestAnimationFrame(draw);
+  }
+
+  new IntersectionObserver(entries=>{
+    if(entries[0].isIntersecting&&!running){running=true;draw();}
+    else if(!entries[0].isIntersecting){running=false;}
+  },{threshold:.05}).observe(canvas.closest('.pheno-section'));
+});
+
+/* ══════════════════════════════════════════
+   CLOCK ANIMATION — 3h03
+══════════════════════════════════════════ */
+(function(){
+  const hh=document.getElementById('clock-h'), mh=document.getElementById('clock-m');
+  if(!hh||!mh) return;
+  // 3:03 → hour hand at 91.5°, minute at 18°
+  hh.style.transform='rotate(91.5deg)';
+  mh.style.transform='rotate(18deg)';
+  // Subtle tick animation
+  let mDeg=18, hDeg=91.5;
+  setInterval(()=>{
+    mDeg+=1.2; hDeg+=0.1;
+    mh.style.transform=`rotate(${mDeg}deg)`;
+    hh.style.transform=`rotate(${hDeg}deg)`;
+  }, 200);
+})();
+
+/* ══════════════════════════════════════════
+   EYE TRACKING — watched placeholder
+══════════════════════════════════════════ */
+(function(){
+  const pupil=document.getElementById('eye-pupil');
+  if(!pupil) return;
+  document.addEventListener('mousemove',e=>{
+    const w=document.getElementById('vph-watched');
+    if(!w) return;
+    const r=w.getBoundingClientRect();
+    const dx=(e.clientX-(r.left+r.width/2))/(innerWidth*.5);
+    const dy=(e.clientY-(r.top+r.height/2))/(innerHeight*.5);
+    pupil.setAttribute('cx',60+Math.min(1,Math.max(-1,dx))*9);
+    pupil.setAttribute('cy',30+Math.min(1,Math.max(-1,dy))*7);
+  },{passive:true});
+  // Idle drift when no mouse
+  let idleT=0;
+  setInterval(()=>{
+    idleT+=0.04;
+    const px=60+Math.sin(idleT*0.7)*5;
+    const py=30+Math.cos(idleT*0.5)*3;
+    pupil.setAttribute('cx',px);
+    pupil.setAttribute('cy',py);
+  }, 50);
+})();
+
+/* ══════════════════════════════════════════
+   PHENO BLOCK scroll reveal
+══════════════════════════════════════════ */
+new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const paras=e.target.querySelectorAll('p');
+      paras.forEach((p,i)=>{
+        p.style.opacity='0'; p.style.transform='translateY(10px)';
+        p.style.transition=`opacity .7s ease ${.1+i*.18}s,transform .7s ease ${.1+i*.18}s`;
+        requestAnimationFrame(()=>{p.style.opacity='1';p.style.transform='translateY(0)';});
+      });
+    }
+  });
+},{threshold:.25}).observe && document.querySelectorAll('.pheno-block').forEach(b=>{
+  new IntersectionObserver(entries=>{
+    if(entries[0].isIntersecting){
+      const paras=b.querySelectorAll('p');
+      paras.forEach((p,i)=>{
+        p.style.opacity='0'; p.style.transform='translateY(10px)';
+        p.style.transition=`opacity .7s ease ${.1+i*.2}s,transform .7s ease ${.1+i*.2}s`;
+        setTimeout(()=>{p.style.opacity='1';p.style.transform='translateY(0)';}, 50);
+      });
+    }
+  },{threshold:.2}).observe(b);
+});
+
+/* PHENO horror hover micro-react */
+document.querySelectorAll('.pheno-horror').forEach(block=>{
+  block.addEventListener('mouseenter',()=>{
+    if(typeof playCreak==='function') playCreak();
+    block.style.transition='none';
+    block.style.transform='translateX(-2px)';
+    setTimeout(()=>{ block.style.transform='translateX(0)'; block.style.transition=''; }, 80);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SÉQUENCE CINÉMATIQUE — LE LIVRE VIVANT
+   Canvas scroll-driven + Sound Engine complet
+═══════════════════════════════════════════════════════════════ */
+(function() {
+  'use strict';
+
+  /* ─── FRAMES BASE64 ─── */
+const FRAMES_B64 = [];
+
+  /* ─── CANVAS SETUP ─── */
+  const sqCanvas = document.getElementById('seq-canvas');
+  if (!sqCanvas) return;
+  const sqCtx = sqCanvas.getContext('2d', {alpha: false});
+  const SQ_W = 480, SQ_H = 270;
+  sqCanvas.width  = SQ_W;
+  sqCanvas.height = SQ_H;
+
+  const SQ_TOTAL = FRAMES_B64.length; // 240
+  const sqImgs   = new Array(SQ_TOTAL);
+  let   sqLoaded = 0;
+  let   sqReady  = false;
+  let   sqCurIdx = 0;
+  let   sqTarget = 0;
+  let   sqDisplay= 0;
+  let   sqLastP  = -1;
+
+  /* ─── LOADER ─── */
+  const sqLdFill = document.getElementById('sq-ld-fill');
+  const sqLdPct  = document.getElementById('sq-ld-pct');
+  const sqLoader = document.getElementById('sq-loader');
+
+  function sqLoadBatch(start, size) {
+    const end = Math.min(start + size, SQ_TOTAL);
+    for (let i = start; i < end; i++) {
+      const img = new Image();
+      img.onload = img.onerror = function() {
+        sqLoaded++;
+        const p = Math.round(sqLoaded / SQ_TOTAL * 100);
+        if (sqLdFill) sqLdFill.style.width = p + '%';
+        if (sqLdPct)  sqLdPct.textContent  = p + ' %';
+        if (sqLoaded === SQ_TOTAL) sqOnReady();
+      };
+      img.src   = FRAMES_B64[i];
+      sqImgs[i] = img;
+    }
+    if (end < SQ_TOTAL) setTimeout(() => sqLoadBatch(end, size), 8);
+  }
+  sqLoadBatch(0, 24);
+
+  function sqOnReady() {
+    sqReady = true;
+    if (sqLoader) { sqLoader.style.opacity = '0'; setTimeout(() => sqLoader.style.display = 'none', 900); }
+    sqDrawFrame(0);
+    sqApplyFx(0);
+    window.addEventListener('scroll', sqOnScroll, {passive: true});
+    sqRenderLoop();
+    sqSoundInit();
+  }
+
+  /* ─── DRAW ─── */
+  function sqDrawFrame(idx) {
+    idx = Math.max(0, Math.min(SQ_TOTAL - 1, Math.round(idx)));
+    const img = sqImgs[idx];
+    if (!img || !img.complete || !img.naturalWidth) return;
+    const sf = Math.max(SQ_W / img.naturalWidth, SQ_H / img.naturalHeight);
+    const dw = img.naturalWidth  * sf;
+    const dh = img.naturalHeight * sf;
+    sqCtx.drawImage(img, (SQ_W - dw) * .5, (SQ_H - dh) * .5, dw, dh);
+    sqCurIdx = idx;
+    const fr = document.getElementById('sq-frame');
+    if (fr) fr.textContent = String(idx+1).padStart(3,'0') + ' / ' + SQ_TOTAL;
+  }
+
+  /* ─── SMOOTH RENDER LOOP ─── */
+  function sqRenderLoop() {
+    const diff = sqTarget - sqDisplay;
+    if (Math.abs(diff) > 0.35) {
+      sqDisplay += diff * 0.15;
+      sqDrawFrame(Math.round(sqDisplay));
+    } else if (Math.round(sqTarget) !== sqCurIdx) {
+      sqDisplay = sqTarget;
+      sqDrawFrame(Math.round(sqTarget));
+    }
+    requestAnimationFrame(sqRenderLoop);
+  }
+
+  /* ─── SCROLL ─── */
+  function sqOnScroll() {
+    if (!sqReady) return;
+    const wrapper = document.getElementById('seq-wrapper');
+    if (!wrapper) return;
+    const rect = wrapper.getBoundingClientRect();
+    const zone = wrapper.offsetHeight - window.innerHeight;
+    const p    = Math.min(1, Math.max(0, -rect.top / zone));
+    if (Math.abs(p - sqLastP) < 0.0008) return;
+    sqLastP    = p;
+    sqTarget   = p * (SQ_TOTAL - 1);
+    sqApplyFx(p);
+    sqSoundUpdate(p);
+  }
+
+  /* ─── EFFETS 3D ─── */
+  function easeInOutCubic(t) {
+    return t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+  }
+  function sqApplyFx(p) {
+    const e = easeInOutCubic(p);
+
+    /* ZOOM cinématique */
+    const scale  = 0.78 + e * 0.68;           // 0.78 → 1.46
+    const rotX   = (1 - Math.min(p*2.5,1)) * 5; // 5° → 0°
+    const rotY   = Math.sin(p * Math.PI * 2) * 1.8;
+    const tY     = (1 - Math.min(p*2,1)) * 15;
+    sqCanvas.style.transform =
+      `perspective(900px) scale(${scale.toFixed(4)}) rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg) translateY(${tY.toFixed(1)}px)`;
+
+    /* Blur profondeur */
+    let blur = 0;
+    if (p < 0.14)      blur = 3.5 * (1 - p / 0.14);
+    else if (p > 0.82) blur = 1.5 * ((p - 0.82) / 0.18);
+    sqCanvas.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : 'none';
+
+    /* Vignette */
+    const vSize = 80 - e*30, vDark = 0.65 + e*.3;
+    const vig = document.getElementById('seq-vignette');
+    if (vig) vig.style.background =
+      `radial-gradient(ellipse ${vSize}% ${vSize}% at 50% 50%, transparent 20%, rgba(0,0,0,${vDark.toFixed(2)}) 100%)`;
+
+    /* Aberration chromatique */
+    const ch = document.getElementById('seq-chroma');
+    if (ch) ch.style.opacity = p > .70 ? Math.pow((p-.70)/.30,1.5)*.9 : 0;
+
+    /* Brouillard sanguin */
+    const bf = document.getElementById('seq-blood-fog');
+    if (bf) bf.style.opacity = p > .62 ? ((p-.62)/.38) : 0;
+
+    /* Flash fin */
+    const fl = document.getElementById('seq-flash');
+    if (fl) fl.style.opacity = p > .95 ? Math.sin((p-.95)/.05*Math.PI)*.1 : 0;
+
+    /* HUD */
+    const fill = document.getElementById('sq-fill');
+    if (fill) fill.style.width = (p*100) + '%';
+    const hint = document.getElementById('sq-hint');
+    if (hint) hint.style.opacity = Math.max(0, 1 - p*10);
+
+    /* Phases texte */
+    sqUpdatePhases(p);
+
+    /* Micro-tremblement fantômes */
+    if (p > .79 && Math.random() < .4 * ((p-.79)/.21)) {
+      const i2 = (p-.79)/.21;
+      sqCanvas.style.marginLeft = (Math.random()-.5)*8*i2 + 'px';
+      sqCanvas.style.marginTop  = (Math.random()-.5)*4*i2 + 'px';
+      setTimeout(() => { sqCanvas.style.marginLeft='0'; sqCanvas.style.marginTop='0'; }, 55);
+    }
+  }
+
+  const SQ_PHASES = [
+    {id:'sq-ph0', from:.00, to:.16},
+    {id:'sq-ph1', from:.22, to:.48},
+    {id:'sq-ph2', from:.54, to:.76},
+    {id:'sq-ph3', from:.83, to:1.0},
+  ];
+  function sqUpdatePhases(p) {
+    SQ_PHASES.forEach(ph => {
+      const el = document.getElementById(ph.id);
+      if (!el) return;
+      const fade = .055;
+      let op = 0;
+      if (p >= ph.from && p <= ph.to) {
+        op = Math.min((p-ph.from)/fade, 1, (ph.to-p)/fade);
+      }
+      el.style.opacity   = op;
+      el.style.transform = `translateY(${(1-op)*14}px)`;
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     MOTEUR SONORE — 100% Web Audio API
+     Orchestre 4 couches audio synchronisées au scroll :
+     1. Drone ambiant grave (bourdon de livre ancien)
+     2. Tension string (cordes qui montent)
+     3. Pages qui tournent (bruit brun filtré)
+     4. Hurlement fantômes (explosion finale)
+  ═══════════════════════════════════════════════════════════════ */
+  let sqACtx = null;
+  let sqSoundReady = false;
+
+  // Nœuds audio
+  let sqDroneOsc, sqDroneGain;
+  let sqStringOsc1, sqStringOsc2, sqStringGain;
+  let sqTensionOsc, sqTensionGain;
+  let sqPageNoise, sqPageGain, sqPageFilter;
+  let sqMasterGain, sqReverb;
+  let sqScreamGain;
+
+  function sqSoundInit() {
+    // Déclenché par le premier scroll sur la section
+    const wrapper = document.getElementById('seq-wrapper');
+    if (!wrapper) return;
+
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && !sqSoundReady) {
+        sqBuildAudio();
+        observer.disconnect();
+      }
+    }, {threshold: 0.1});
+    observer.observe(wrapper);
+  }
+
+  function sqBuildAudio() {
+    try {
+      sqACtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) { return; }
+
+    sqSoundReady = true;
+
+    /* ── MASTER + REVERB ── */
+    sqMasterGain = sqACtx.createGain();
+    sqMasterGain.gain.value = 0;   // commence silencieux
+    sqMasterGain.connect(sqACtx.destination);
+
+    // Reverb synthétique (impulse longue = cave de cathédrale)
+    sqReverb = sqACtx.createConvolver();
+    const revLen = sqACtx.sampleRate * 4.5;
+    const revBuf = sqACtx.createBuffer(2, revLen, sqACtx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = revBuf.getChannelData(ch);
+      for (let i = 0; i < revLen; i++)
+        d[i] = (Math.random()*2-1) * Math.pow(1 - i/revLen, 1.8);
+    }
+    sqReverb.buffer = revBuf;
+    const revGain = sqACtx.createGain();
+    revGain.gain.value = 0.55;
+    sqReverb.connect(revGain);
+    revGain.connect(sqMasterGain);
+
+    /* ── COUCHE 1 : DRONE GRAVE (livre endormi) ──
+       Oscillateur basse fréquence 40Hz + harmoniques
+       Ressemble à un vieux parchemin qui respire */
+    sqDroneGain = sqACtx.createGain();
+    sqDroneGain.gain.value = 0;
+
+    [40, 80, 120].forEach((freq, i) => {
+      const o = sqACtx.createOscillator();
+      o.type = i === 0 ? 'sine' : 'sawtooth';
+      o.frequency.value = freq;
+      // Légère modulation de fréquence (vibrato lent)
+      const lfo = sqACtx.createOscillator();
+      const lfoG = sqACtx.createGain();
+      lfo.frequency.value = 0.12 + i*0.08;
+      lfoG.gain.value = 0.4 + i*0.2;
+      lfo.connect(lfoG);
+      lfoG.connect(o.frequency);
+      lfo.start();
+
+      const g = sqACtx.createGain();
+      g.gain.value = i === 0 ? 0.6 : 0.15 / (i+1);
+      o.connect(g);
+      g.connect(sqDroneGain);
+      o.start();
+    });
+
+    const droneFilter = sqACtx.createBiquadFilter();
+    droneFilter.type = 'lowpass';
+    droneFilter.frequency.value = 200;
+    sqDroneGain.connect(droneFilter);
+    droneFilter.connect(sqMasterGain);
+    droneFilter.connect(sqReverb);
+
+    /* ── COUCHE 2 : TENSION STRINGS (cordes qui se tendent) ──
+       2 oscillateurs en micro-désaccord pour effet de battement
+       Monte en fréquence au scroll (livre qui s'ouvre) */
+    sqStringGain = sqACtx.createGain();
+    sqStringGain.gain.value = 0;
+
+    sqStringOsc1 = sqACtx.createOscillator();
+    sqStringOsc2 = sqACtx.createOscillator();
+    sqStringOsc1.type = sqStringOsc2.type = 'sawtooth';
+    sqStringOsc1.frequency.value = 110;
+    sqStringOsc2.frequency.value = 110.8;  // léger désaccord = battement
+
+    const strFilter = sqACtx.createBiquadFilter();
+    strFilter.type = 'bandpass';
+    strFilter.frequency.value = 300;
+    strFilter.Q.value = 2;
+
+    [sqStringOsc1, sqStringOsc2].forEach(o => {
+      o.connect(strFilter);
+      o.start();
+    });
+    strFilter.connect(sqStringGain);
+    sqStringGain.connect(sqMasterGain);
+    sqStringGain.connect(sqReverb);
+
+    /* ── COUCHE 3 : PAGES QUI TOURNENT (bruit brun) ──
+       Bruit brun filtré = texture de papier ancien qui grince */
+    sqPageGain = sqACtx.createGain();
+    sqPageGain.gain.value = 0;
+    sqPageFilter = sqACtx.createBiquadFilter();
+    sqPageFilter.type = 'bandpass';
+    sqPageFilter.frequency.value = 800;
+    sqPageFilter.Q.value = 0.8;
+
+    // Bruit brun (Pink noise approximation)
+    const noiseLen = sqACtx.sampleRate * 3;
+    const noiseBuf = sqACtx.createBuffer(1, noiseLen, sqACtx.sampleRate);
+    const nd = noiseBuf.getChannelData(0);
+    let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+    for (let i = 0; i < noiseLen; i++) {
+      const wh = Math.random()*2-1;
+      b0=.99886*b0+wh*.0555179; b1=.99332*b1+wh*.0750759;
+      b2=.96900*b2+wh*.1538520; b3=.86650*b3+wh*.3104856;
+      b4=.55000*b4+wh*.5329522; b5=-.7616*b5-wh*.0168980;
+      nd[i] = (b0+b1+b2+b3+b4+b5+b6+wh*.5362)*.11;
+      b6=wh*.115926;
+    }
+    sqPageNoise = sqACtx.createBufferSource();
+    sqPageNoise.buffer = noiseBuf;
+    sqPageNoise.loop = true;
+    sqPageNoise.connect(sqPageFilter);
+    sqPageFilter.connect(sqPageGain);
+    sqPageGain.connect(sqMasterGain);
+    sqPageNoise.start();
+
+    /* ── COUCHE 4 : HURLEMENT FANTÔMES ──
+       Prêt à être déclenché à p>0.78
+       Oscillateurs haute fréquence + distorsion */
+    sqScreamGain = sqACtx.createGain();
+    sqScreamGain.gain.value = 0;
+
+    [600, 900, 1200, 800].forEach((freq, i) => {
+      const o = sqACtx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = freq;
+      // Vibrato rapide (hurlement)
+      const vib = sqACtx.createOscillator();
+      const vibG = sqACtx.createGain();
+      vib.frequency.value = 8 + i*3;
+      vibG.gain.value = 15 + i*8;
+      vib.connect(vibG);
+      vibG.connect(o.frequency);
+      vib.start();
+
+      const g = sqACtx.createGain();
+      g.gain.value = 0.12 / (i+1);
+      o.connect(g);
+      g.connect(sqScreamGain);
+      o.start();
+    });
+
+    const screamFilter = sqACtx.createBiquadFilter();
+    screamFilter.type = 'highpass';
+    screamFilter.frequency.value = 500;
+    sqScreamGain.connect(screamFilter);
+    screamFilter.connect(sqMasterGain);
+    screamFilter.connect(sqReverb);
+
+    /* Master fade in doux au démarrage */
+    sqMasterGain.gain.setValueAtTime(0, sqACtx.currentTime);
+    sqMasterGain.gain.linearRampToValueAtTime(0.6, sqACtx.currentTime + 2);
+    sqDroneGain.gain.linearRampToValueAtTime(0.4, sqACtx.currentTime + 2);
+  }
+
+  /* ── UPDATE SONORE AU SCROLL ── */
+  function sqSoundUpdate(p) {
+    if (!sqSoundReady || !sqACtx) return;
+    const now = sqACtx.currentTime;
+
+    /* Drone : constant mais qui pulse légèrement */
+    if (sqDroneGain) {
+      const droneVol = 0.3 + p * 0.2;
+      sqDroneGain.gain.setTargetAtTime(droneVol, now, 0.3);
+    }
+
+    /* Strings : commencent à 25%, montent jusqu'à 80% */
+    if (sqStringGain) {
+      const strVol = p > .25 ? Math.min((p-.25)/.55, 1) * 0.35 : 0;
+      sqStringGain.gain.setTargetAtTime(strVol, now, 0.2);
+
+      // Fréquence monte avec le scroll (livre s'ouvre = tension monte)
+      if (sqStringOsc1 && sqStringOsc2) {
+        const baseFreq = 110 + p * 180;  // 110Hz → 290Hz
+        sqStringOsc1.frequency.setTargetAtTime(baseFreq, now, 0.4);
+        sqStringOsc2.frequency.setTargetAtTime(baseFreq + 1.2, now, 0.4);
+        // Filtre s'ouvre
+        if (p > .3) {
+          // No direct access to strFilter here, handled via gain shape
+        }
+      }
+    }
+
+    /* Pages : actives entre 20% et 85% avec pic à 50% */
+    if (sqPageGain) {
+      let pageVol = 0;
+      if (p > .20 && p < .85) {
+        const peak = 1 - Math.abs(p - .50) / .35;
+        pageVol = Math.max(0, peak) * 0.18;
+      }
+      sqPageGain.gain.setTargetAtTime(pageVol, now, 0.15);
+      // Filtre fréquence varie selon les pages
+      if (sqPageFilter) {
+        sqPageFilter.frequency.setTargetAtTime(600 + p * 800, now, 0.2);
+      }
+    }
+
+    /* Hurlements fantômes : démarrent à 75%, explosion à 90%+ */
+    if (sqScreamGain) {
+      const screamVol = p > .75 ? Math.pow((p-.75)/.25, 2) * 0.5 : 0;
+      sqScreamGain.gain.setTargetAtTime(screamVol, now, 0.08);
+    }
+
+    /* Volume master : fade out si on dépasse la section */
+    if (p >= .99) {
+      sqMasterGain.gain.setTargetAtTime(0, now, 1.5);
+    } else if (p < .02) {
+      sqMasterGain.gain.setTargetAtTime(0, now, 0.5);
+    } else {
+      const masterVol = 0.5 + p * 0.3;
+      sqMasterGain.gain.setTargetAtTime(Math.min(masterVol, 0.75), now, 0.5);
+    }
+  }
+
+})(); /* fin IIFE */
+
+
+/* ══════════════════════════════════════════
+   HERO SEQUENCE — figure sans visage
+   Autoplay + scroll scrub
+══════════════════════════════════════════ */
+(function(){
+  const hCanvas = document.getElementById('hero-seq-canvas');
+  if(!hCanvas) return;
+
+  const hCtx = hCanvas.getContext('2d', {alpha: false});
+  // Internal resolution matching 16:9
+  hCanvas.width  = 640;
+  hCanvas.height = 360;
+
+const HERO_FRAMES = [];
+
+  const H_TOTAL = HERO_FRAMES.length; // 200
+  const hImgs   = new Array(H_TOTAL);
+  let   hLoaded = 0;
+  let   hReady  = false;
+  let   hCurIdx = 0;
+  let   hTarget = 0;
+  let   hDisplay= 0;
+  // Autoplay state
+  let   hAutoDir   = 1;   // 1 = forward, -1 = reverse
+  let   hAutoFrame = 0;   // float for smooth autoplay
+  let   hAutoSpeed = 0.4; // frames per animation tick
+  let   hScrolling = false;
+  let   hScrollTimer = null;
+
+  // ── LOAD ──
+  function hLoadBatch(start, size){
+    const end = Math.min(start+size, H_TOTAL);
+    for(let i=start;i<end;i++){
+      const img = new Image();
+      img.onload = img.onerror = function(){
+        hLoaded++;
+        if(hLoaded===H_TOTAL) hOnReady();
+      };
+      img.src   = HERO_FRAMES[i];
+      hImgs[i]  = img;
+    }
+    if(end<H_TOTAL) setTimeout(()=>hLoadBatch(end,size), 8);
+  }
+  hLoadBatch(0, 20);
+
+  function hOnReady(){
+    hReady = true;
+    const loader = document.getElementById('hero-seq-loader');
+    if(loader){ loader.classList.add('done'); setTimeout(()=>loader.style.display='none', 700); }
+    hDrawFrame(0);
+    hAutoLoop();
+    window.addEventListener('scroll', hOnScroll, {passive:true});
+  }
+
+  // ── DRAW ──
+  function hDrawFrame(idx){
+    idx = Math.max(0, Math.min(H_TOTAL-1, Math.round(idx)));
+    const img = hImgs[idx];
+    if(!img||!img.complete||!img.naturalWidth) return;
+    const sf = Math.max(640/img.naturalWidth, 360/img.naturalHeight);
+    const dw = img.naturalWidth*sf, dh = img.naturalHeight*sf;
+    hCtx.drawImage(img,(640-dw)*.5,(360-dh)*.5,dw,dh);
+    hCurIdx = idx;
+  }
+
+  // ── AUTOPLAY LOOP — boucle ping-pong continue ──
+  // La figure avance vers le visage puis recule, en boucle
+  function hAutoLoop(){
+    if(!hReady) return;
+
+    if(!hScrolling){
+      // smooth lerp to float target
+      hAutoFrame += hAutoDir * hAutoSpeed;
+      // Bounce at edges — ping-pong
+      if(hAutoFrame >= H_TOTAL-1){ hAutoFrame=H_TOTAL-1; hAutoDir=-1; }
+      if(hAutoFrame <= 0)         { hAutoFrame=0;         hAutoDir=1;  }
+
+      hDisplay += (hAutoFrame - hDisplay) * 0.12;
+      if(Math.abs(hAutoFrame-hDisplay)>0.3) hDrawFrame(Math.round(hDisplay));
+      else hDrawFrame(Math.round(hAutoFrame));
+    }
+    requestAnimationFrame(hAutoLoop);
+  }
+
+  // ── SCROLL SCRUB — override autoplay when scrolling ──
+  function hOnScroll(){
+    if(!hReady) return;
+    hScrolling = true;
+    clearTimeout(hScrollTimer);
+    // Resume autoplay 2s after scroll stops
+    hScrollTimer = setTimeout(()=>{ hScrolling=false; }, 2000);
+
+    // Map scroll position to frame
+    // Hero is at top, so scrollY 0→vh maps to frame 0→H_TOTAL
+    const maxScroll = Math.max(document.body.scrollHeight - window.innerHeight, 1);
+    const p = Math.min(1, window.scrollY / (window.innerHeight * 0.8));
+    hTarget = p * (H_TOTAL-1);
+
+    // Smooth lerp to target
+    hDisplay += (hTarget-hDisplay)*0.15;
+    hAutoFrame = hDisplay; // keep autoplay in sync so resume is smooth
+    hDrawFrame(Math.round(hDisplay));
+  }
+
+  // ── RAF loop for smooth scroll interpolation ──
+  (function hRafLoop(){
+    if(hScrolling && hReady){
+      const diff = hTarget-hDisplay;
+      if(Math.abs(diff)>0.3){
+        hDisplay+=diff*0.14;
+        hDrawFrame(Math.round(hDisplay));
+      }
+    }
+    requestAnimationFrame(hRafLoop);
+  })();
+
+})();
+
+
+/* ══ STORY VIDEO — parallax + son ══ */
+function toggleStoryVidSound(vidId, btn) {
+  var vid = document.getElementById(vidId);
+  if (!vid) return;
+  if (vid.muted) {
+    vid.muted = false;
+    btn.textContent = '🔊 Son';
+    btn.classList.add('on');
+    if (typeof initAudio === 'function') initAudio();
+  } else {
+    vid.muted = true;
+    btn.textContent = '🔇 Son';
+    btn.classList.remove('on');
+  }
+}
+
+/* Parallax on story modal scroll */
+document.getElementById('story-modal') && document.getElementById('story-modal').addEventListener('scroll', function() {
+  var modal = this;
+  var parallax = modal.querySelector('.story-video-parallax');
+  if (parallax) {
+    var scrolled = modal.scrollTop;
+    parallax.style.transform = 'translateY(' + (scrolled * 0.08) + 'px)';
+  }
+}, {passive: true});
+
+</script>
+
+<script>
+/* ═══ CHARGEUR DE DONNÉES EXTERNE ═══
+   Charge frames.js et videos.js après le rendu
+   pour ne pas bloquer l'affichage */
+(function() {
+  var loaded = 0;
+  var files = ['frames.js', 'videos.js'];
+  
+  function loadScript(src) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.onload = function() {
+      loaded++;
+      console.log('[SURNAR] ' + src + ' chargé (' + loaded + '/' + files.length + ')');
+    };
+    s.onerror = function() { console.warn('[SURNAR] Erreur chargement: ' + src); };
+    document.head.appendChild(s);
+  }
+  
+  if (document.readyState === 'complete') {
+    files.forEach(loadScript);
+  } else {
+    window.addEventListener('load', function() { files.forEach(loadScript); });
+  }
+})();
+</script>
+
+</body>
+</html>
