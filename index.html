@@ -1439,17 +1439,6 @@ html.story-open-html {
   overflow: hidden !important;
 }
 
-/* ═══ MODAL HISTOIRE ═══ */
-#story-modal {
-  display: none;
-  position: fixed; inset: 0;
-  z-index: 500;
-  background: #000;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  isolation: isolate;
-}
-#story-modal.open { display: flex; flex-direction: column; }
 
 /* Vidéo PLEIN ÉCRAN derrière le texte */
 #story-video-backdrop {
@@ -1558,6 +1547,127 @@ html.story-open-html {
 @media (max-width: 768px) {
   #story-content { padding: 40px 18px 100px; }
   #story-sound-btn { bottom: 16px; right: 16px; }
+}
+
+
+/* ═══ MODAL — VIDÉO PLEIN ÉCRAN ═══ */
+#story-modal {
+  display: none;
+  position: fixed; inset: 0;
+  z-index: 500;
+  background: #000;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  isolation: isolate;
+}
+#story-modal.open { display: flex; flex-direction: column; }
+
+/* VIDÉO : fond plein écran absolu dans le modal */
+#story-video-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 501;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 2.5s ease;
+  overflow: hidden;
+}
+#story-video-backdrop.active { opacity: 1; }
+
+#story-backdrop-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Lumineux et visible — brightness élevé */
+  filter: brightness(0.88) contrast(1.05);
+  transform: scale(1.08);
+  will-change: transform, filter;
+}
+
+/* Overlay minimal — lisibilité du texte sans cacher la vidéo */
+#story-video-overlay {
+  position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.48) 0%,
+    rgba(0,0,0,0.15) 25%,
+    rgba(0,0,0,0.15) 75%,
+    rgba(0,0,0,0.55) 100%
+  );
+}
+
+/* Grain cinéma */
+#story-video-grain {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none; opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 120px;
+  animation: grain .08s steps(1) infinite;
+}
+#story-video-scanlines {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none; opacity: 0.025;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,1) 2px,rgba(0,0,0,1) 4px);
+}
+@keyframes redFlash { 0%,94%,100%{opacity:0} 95%{opacity:.05} }
+#story-video-glitch {
+  position: absolute; inset: 0; z-index: 3;
+  pointer-events: none; background: #CC0000;
+  opacity: 0; animation: redFlash 9s ease infinite;
+}
+
+/* Contenu texte au-dessus */
+.modal-nav {
+  position: sticky !important; top: 0 !important;
+  z-index: 510 !important;
+  background: rgba(0,0,0,0.75) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+#story-content {
+  position: relative !important;
+  z-index: 505 !important;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 60px 40px 120px;
+}
+
+/* Barre de progression */
+#story-read-progress {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 2px; z-index: 550; pointer-events: none;
+}
+#story-read-progress-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(to right, transparent, #CC0000);
+  transition: width 0.12s linear;
+}
+
+/* Bouton son */
+#story-sound-btn {
+  position: fixed; bottom: 24px; right: 24px;
+  z-index: 550; display: none;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(255,255,255,0.8);
+  background: rgba(0,0,0,0.85);
+  border: 1px solid rgba(255,255,255,0.18);
+  padding: 10px 18px; cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all .3s;
+}
+#story-modal.open #story-sound-btn { display: block; }
+#story-sound-btn:hover, #story-sound-btn.on { color: #CC0000; border-color: #8B0000; }
+
+/* Scroll lock */
+body.story-open { overflow: hidden !important; position: fixed; width: 100%; top: 0; }
+html.story-open-html { overflow: hidden !important; }
+
+@media(max-width:768px){
+  #story-content { padding: 40px 18px 100px; }
+  #story-sound-btn { bottom:14px; right:14px; }
 }
 
 </style>
@@ -2971,14 +3081,7 @@ var storyJsTimer=null, storyBreathInterval=null;
 /* ══ VIDEO SOURCES — indexed by story ID ══ */
 
 // requestIdleCallback polyfill
-if (!window.requestIdleCallback) {
-  window.requestIdleCallback = function(cb, opts) {
-    return setTimeout(function() { cb({didTimeout:false,timeRemaining:function(){return 50;}}); }, 
-      opts && opts.timeout ? Math.min(opts.timeout, 50) : 50);
-  };
-}
 
-const STORY_VIDEOS_B64 = {};
 
 // Créer les Blob URLs au chargement (lazy, hors thread principal)
 const STORY_VIDEO_URLS = {};
@@ -3015,48 +3118,50 @@ function openStory(id) {
   var s = stories[id];
   if (!s) return;
 
-  /* Contenu */
+  /* 1. Contenu texte */
   document.getElementById('modal-story-label').textContent = 'SURNARHORREUR — ' + s.title.toUpperCase();
   document.getElementById('story-content').innerHTML =
     '<h1 class="story-content-title">' + s.title + '</h1>' +
     '<p class="story-content-meta">' + s.meta + '</p>' +
     '<div class="story-body" id="story-body">' + s.body + '</div>';
 
-  /* Ouvrir modal — BLOQUER SCROLL PAGE */
+  /* 2. Ouvrir modal + bloquer scroll page */
   var modal = document.getElementById('story-modal');
   modal.classList.add('open');
   modal.scrollTop = 0;
   document.body.classList.add('story-open');
   document.documentElement.classList.add('story-open-html');
 
-  /* Progress bar */
+  /* 3. Progress bar */
   var fill = document.getElementById('story-read-progress-fill');
   if (fill) fill.style.width = '0%';
 
-  /* Animer paragraphes */
+  /* 4. Animer paragraphes */
   setTimeout(function() {
-    var paras = document.querySelectorAll('.story-body > *');
-    paras.forEach(function(p, i) {
+    document.querySelectorAll('.story-body > *').forEach(function(p, i) {
       p.style.opacity = '0';
       p.style.transform = 'translateY(12px)';
-      p.style.transition = 'opacity 0.5s ease ' + (i*0.1) + 's, transform 0.5s ease ' + (i*0.1) + 's';
-      setTimeout(function() { p.style.opacity='1'; p.style.transform='translateY(0)'; }, 30);
+      p.style.transition = 'opacity 0.5s ease '+(i*0.09)+'s, transform 0.5s ease '+(i*0.09)+'s';
+      setTimeout(function(){ p.style.opacity='1'; p.style.transform='translateY(0)'; }, 30);
     });
   }, 80);
 
-  /* Audio */
+  /* 5. Audio */
   fadeInAmbient(0.1, 2);
   playBreath();
   if (s.breathEffect) storyBreathInterval = setInterval(function(){ playBreath(); }, 9000);
-  if (s.jumpscare) storyJsTimer = setTimeout(triggerJumpscare, 28000 + Math.random()*18000);
+  if (s.jumpscare) storyJsTimer = setTimeout(triggerJumpscare, 28000+Math.random()*18000);
 
-  /* ═══ VIDÉO PLEIN ÉCRAN ═══ */
+  /* 6. ═══ VIDÉO PLEIN ÉCRAN ═══ */
   var backdrop = document.getElementById('story-video-backdrop');
-  var vid = document.getElementById('story-backdrop-video');
+  var vid      = document.getElementById('story-backdrop-video');
+
   if (backdrop && vid) {
     backdrop.classList.remove('active');
     backdrop.style.opacity = '0';
-    vid.pause(); vid.src = '';
+    vid.pause();
+    vid.removeAttribute('src');
+    vid.load();
 
     getVideoUrl(id).then(function(url) {
       if (!url) return;
@@ -3064,71 +3169,94 @@ function openStory(id) {
       vid.muted = true;
       vid.load();
       vid.play().catch(function(){});
+
       /* Fondu progressif */
-      var op = 0, t = setInterval(function() {
-        op = Math.min(op + 0.04, 1);
+      var op = 0;
+      var t = setInterval(function(){
+        op = Math.min(op+0.04, 1);
         backdrop.style.opacity = op.toFixed(2);
         if (op >= 1) { backdrop.classList.add('active'); clearInterval(t); }
       }, 60);
     });
   }
 
-  /* ═══ SCROLL SYNC ═══ */
+  /* 7. ═══ SCROLL SYNC ═══ */
   if (modal._scrollOff) { modal._scrollOff(); modal._scrollOff = null; }
+
   function onScroll() {
     var max = modal.scrollHeight - modal.clientHeight;
     if (max <= 0) return;
     var p = Math.min(1, modal.scrollTop / max);
-    if (fill) fill.style.width = (p*100) + '%';
+
+    /* Barre progression */
+    if (fill) fill.style.width = (p*100)+'%';
+
     if (!vid || !vid.src || vid.readyState < 1) return;
 
-    /* Sync position */
+    /* ── Sync position vidéo sur scroll ── */
     if (vid.duration > 0) {
-      var diff = (p * vid.duration) - vid.currentTime;
-      if (Math.abs(diff) > 0.25) vid.currentTime += diff * 0.14;
+      var target = p * vid.duration;
+      var diff   = target - vid.currentTime;
+      if (Math.abs(diff) > 0.2) vid.currentTime += diff * 0.15;
     }
-    /* Vitesse selon progression — tension qui monte */
-    try { vid.playbackRate = p<0.15?0.5 : p<0.5?0.85 : p<0.8?1.2 : 1.8; } catch(e){}
-    /* Parallax */
-    vid.style.transform = 'scale(1.12) translateY(' + (p*6) + '%)';
-    /* Luminosité dynamique — plus claire au coeur de l'histoire */
-    var br = p<0.4 ? (0.65+p*0.45) : p<0.7 ? 0.85 : (0.85-(p-0.7)*0.5);
-    vid.style.filter = 'brightness(' + br.toFixed(2) + ') contrast(1.05)';
+
+    /* ── Vitesse : tension qui monte ── */
+    try {
+      vid.playbackRate = p < 0.15 ? 0.5
+                       : p < 0.5  ? 0.8
+                       : p < 0.8  ? 1.2
+                       : 1.5;
+    } catch(e) {}
+
+    /* ── Parallax : dérive vers le bas ── */
+    vid.style.transform = 'scale(1.08) translateY('+(p*6)+'%)';
+
+    /* ── Luminosité dynamique ── */
+    /* Légèrement sombre au début → plus clair au cœur → sombre à la fin */
+    /* Toujours lisible — plage entre 0.72 et 0.88 */
+    var br = p < 0.35 ? (0.72 + p*0.46)   /* 0.72→0.88 */
+           : p < 0.65 ? 0.88               /* pic lumineux */
+           : (0.88 - (p-0.65)*0.46);       /* 0.88→0.73 */
+    vid.style.filter = 'brightness('+br.toFixed(2)+') contrast(1.05)';
   }
+
   modal.addEventListener('scroll', onScroll, {passive:true});
   modal._scrollOff = function(){ modal.removeEventListener('scroll', onScroll); };
-
-  /* Présence */
-  setTimeout(function() {
-    var pr = document.getElementById('presence');
-    if (pr) { pr.style.transition='opacity 4s ease'; pr.style.opacity='0.22'; }
-  }, 18000);
 }
 
 function closeStory() {
   clearTimeout(storyJsTimer);
   clearInterval(storyBreathInterval);
 
-  var modal = document.getElementById('story-modal');
-  var vid   = document.getElementById('story-backdrop-video');
-  var bd    = document.getElementById('story-video-backdrop');
-  var fill  = document.getElementById('story-read-progress-fill');
+  var modal    = document.getElementById('story-modal');
+  var vid      = document.getElementById('story-backdrop-video');
+  var backdrop = document.getElementById('story-video-backdrop');
+  var fill     = document.getElementById('story-read-progress-fill');
 
   if (modal._scrollOff) { modal._scrollOff(); modal._scrollOff = null; }
 
-  if (bd) { bd.style.opacity='0'; bd.classList.remove('active'); }
-  if (vid) { setTimeout(function(){ vid.pause(); vid.src=''; }, 450); vid.muted=true; }
-  if (fill) fill.style.width='0%';
+  /* Arrêter vidéo */
+  if (backdrop) { backdrop.style.opacity='0'; backdrop.classList.remove('active'); }
+  if (vid) {
+    setTimeout(function(){
+      vid.pause();
+      vid.removeAttribute('src');
+      vid.load();
+    }, 450);
+    vid.muted = true;
+  }
 
+  if (fill) fill.style.width='0%';
   var sndBtn = document.getElementById('story-sound-btn');
   if (sndBtn) { sndBtn.textContent='🔇 Son'; sndBtn.classList.remove('on'); }
 
-  /* Fermer avec fondu + DÉBLOQUER SCROLL */
+  /* Fermer avec fondu + débloquer scroll */
   modal.style.opacity='0';
   modal.style.transition='opacity 0.35s ease';
   setTimeout(function(){
     modal.classList.remove('open');
-    modal.style.opacity=''; modal.style.transition='';
+    modal.style.opacity='';
+    modal.style.transition='';
     document.body.classList.remove('story-open');
     document.documentElement.classList.remove('story-open-html');
     document.getElementById('story-content').innerHTML='';
@@ -3138,6 +3266,16 @@ function closeStory() {
   if (pr) { pr.style.transition='opacity 2s'; pr.style.opacity='0'; }
   fadeInAmbient(0.05, 2);
 }
+
+function toggleBackdropSound() {
+  var vid = document.getElementById('story-backdrop-video');
+  var btn = document.getElementById('story-sound-btn');
+  if (!vid) return;
+  vid.muted = !vid.muted;
+  if (btn) { btn.textContent=vid.muted?'🔇 Son':'🔊 Son'; btn.classList.toggle('on',!vid.muted); }
+  if (!vid.muted) initAudio();
+}
+
 
 function toggleBackdropSound() {
   var vid = document.getElementById('story-backdrop-video');
@@ -4060,12 +4198,37 @@ document.getElementById('story-modal') && document.getElementById('story-modal')
 </script>
 
 <script>
+
+/* ═══ VIDÉOS — chargement direct par URL ═══ */
+const STORY_VIDEOS = {
+  sleep:   'videos/sleep.mp4',
+  mirror:  'videos/mirror.mp4',
+  signal:  'videos/signal.mp4',
+  bulb:    'videos/bulb.mp4',
+  wake:    'videos/wake.mp4',
+  watched: 'videos/watched.mp4'
+};
+
+function getVideoUrl(id) {
+  return Promise.resolve(STORY_VIDEOS[id] || null);
+}
+
+/* requestIdleCallback polyfill */
+if (!window.requestIdleCallback) {
+  window.requestIdleCallback = function(cb, opts) {
+    return setTimeout(function() { cb({timeRemaining: function(){return 50;}}); },
+      opts && opts.timeout ? Math.min(opts.timeout, 50) : 50);
+  };
+}
+
+</script>
+<script>
 /* ═══ CHARGEUR DE DONNÉES EXTERNE ═══
    Charge frames.js et videos.js après le rendu
    pour ne pas bloquer l'affichage */
 (function() {
   var loaded = 0;
-  var files = ['frames.js', 'videos.js'];
+  var files = ['frames.js'];
   
   function loadScript(src) {
     var s = document.createElement('script');
