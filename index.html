@@ -1802,14 +1802,14 @@ html.story-open-html { overflow: hidden !important; }
       <h1 class="hero-title" aria-label="SURNARHORREUR">
         <span class="glitch-text" data-text="SURNAR">SURNAR</span>
         <div id="hero-canvas-wrap">
-          <canvas id="hero-seq-canvas" aria-hidden="true"></canvas>
-          <div class="hc-grain" aria-hidden="true"></div>
-          <div id="hero-seq-loader" aria-hidden="true">
-            <div class="hsl-dot"></div>
-            <div class="hsl-dot"></div>
-            <div class="hsl-dot"></div>
-          </div>
-        </div>
+  <video id="hero-video" autoplay muted loop playsinline
+    style="width:100%;display:block;aspect-ratio:16/9;object-fit:cover;
+    mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.7) 8%,black 20%,black 80%,rgba(0,0,0,.7) 92%,transparent 100%);
+    -webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.7) 8%,black 20%,black 80%,rgba(0,0,0,.7) 92%,transparent 100%);">
+    <source src="videos/hero.mp4" type="video/mp4">
+  </video>
+  <div class="hc-grain" aria-hidden="true"></div>
+</div>
         <span class="blood-word glitch-text" data-text="HORREUR">HORREUR</span>
       </h1>
       <p class="hero-subtitle">Chaque histoire est une expérience. Chaque page te rapproche de quelque chose qui ne devrait pas exister.</p>
